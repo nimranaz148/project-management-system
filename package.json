@@ -1,0 +1,23 @@
+{
+  "name": "projectmanagement",
+  "version": "1.0.0",
+  "description": "a project management application",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "node index.js"
+  },
+  "keywords": [
+    "backend",
+    "api",
+    "project",
+    "management",
+    "app",
+    "nodejs"
+  ],
+  "author": "nimra naz",
+  "license": "MIT",
+  "devDependencies": {
+    "prettier": "3.7.4"
+  }
+}
