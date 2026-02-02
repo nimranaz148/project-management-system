@@ -1,5 +1,5 @@
 import express from 'express';
-import { registerUser, login, verifyEmail, logoutUser , resendEmailVerification, getCurrentUser, refreshAccesToken} from '../controllers/auth.controllers.js';
+import { registerUser, login, verifyEmail, logoutUser , resendEmailVerification, getCurrentUser, refreshAccesToken, forgetPasswordRequest, resetForgetPassword} from '../controllers/auth.controllers.js';
 import {verifyJWT} from '../middlewares/auth.middleware.js'
 
 const router = express.Router();
@@ -21,6 +21,10 @@ router.route("/current-user").post(verifyJWT, getCurrentUser) // get current log
 
 router.route("/refresh-token").post(refreshAccesToken) // get current logged in user route
 
+
+router.route("/forget-password").post(forgetPasswordRequest) // forget password route
+
+router.route("/reset-password/:resetToken").post(resetForgetPassword) // reset password route 
 
 
 
