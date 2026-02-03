@@ -379,9 +379,35 @@ const resetForgetPassword = asyncHandler( async (req, res) => {
 
 })
 
+//----------------------------CHANGE PASSWORD----------------------
+const changeCurrentPassword = asyncHandler( async (req, res) => {
+    // getting old and new password from req.body
+    const { oldPassword, newPassword } = req.body
+
+    // find user in database 
+    const user = await userTable.findById(req.user._id)
+
+    // if user is not found, throw error
+    if (!user) {
+        throw new ApiError(404, "User not found")
+    }
+
+    // check if old password is correct
+    const isOldPasswordCorrect = await user.isPasswordCorrect(oldPassword)
+
+    // update users password
+    user.password = newPassword // set new password
+    await user.save({ validateBeforeSave: false })
+
+    // send response to client
+    return res.status(200).json(
+        new ApiResponse(200, null, "Password changed successfully")
+    )
+})
 
 
-export { registerUser, login, verifyEmail, logoutUser, resendEmailVerification, getCurrentUser, refreshAccesToken, forgetPasswordRequest, resetForgetPassword }
+
+export { registerUser, login, verifyEmail, logoutUser, resendEmailVerification, getCurrentUser, refreshAccesToken, forgetPasswordRequest, resetForgetPassword, changeCurrentPassword }
 
 //------------------------------------
 
