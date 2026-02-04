@@ -1,7 +1,8 @@
 import express from "express";
 import cors from "cors";
 import healthCheckRoutes from "./routes/healthCheck.routes.js";
-import authRouter from "./routes/auth.routes.js"
+import authRouter from "./routes/auth.routes.js";
+import projectRouter from "./routes/projects.routes.js";
 import cookieParser from "cookie-parser";
 
 const app = express();
@@ -19,7 +20,8 @@ app.use(express.static("public")); // this tells express about   never changing 
 
 app.use(cors(
     {
-        origin: process.env.CORS_ORIGINS || "*",
+        // process.env.CORS_ORIGINS || "*"
+        origin: "http://localhost:3000",
         credentials: true,
         methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
         allowedHeaders: ["Content-Type", "Authorization"],  
@@ -36,6 +38,7 @@ app.get("/", (req, res) => {
 //---------------------API routes---------------------------
 app.use("/api/v1/healthcheck", healthCheckRoutes)
 app.use("/api/v1/auth", authRouter)
+app.use("/api/v1/project", projectRouter)
 
 
 export default app;

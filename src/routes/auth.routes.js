@@ -30,5 +30,4 @@ router.route("/reset-password/:resetToken").post(resetForgetPassword) // reset p
 router.route("/change-password").post(verifyJWT, changeCurrentPassword) // change password route
 
 
-
 export default router;
