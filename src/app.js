@@ -3,7 +3,12 @@ import cors from "cors";
 import healthCheckRoutes from "./routes/healthCheck.routes.js";
 import authRouter from "./routes/auth.routes.js";
 import projectRouter from "./routes/projects.routes.js";
-import cookieParser from "cookie-parser";
+import cookieParser from "cookie-parser";   
+import ProjectMemberRouter from "./routes/projectMembers.routes.js";
+import TaskRouter from "./routes/task.routes.js";
+import subTaskRouter from "./routes/subtask.routes.js";
+import noteRouter from "./routes/note.routes.js"
+
 
 const app = express();
 
@@ -39,6 +44,9 @@ app.get("/", (req, res) => {
 app.use("/api/v1/healthcheck", healthCheckRoutes)
 app.use("/api/v1/auth", authRouter)
 app.use("/api/v1/project", projectRouter)
-
+app.use("/api/v1/projects", ProjectMemberRouter)
+app.use("/api/v1/tasks", TaskRouter) // 
+app.use("/api/v1/tasks", subTaskRouter) 
+app.use("/api/v1/notes", noteRouter) 
 
 export default app;

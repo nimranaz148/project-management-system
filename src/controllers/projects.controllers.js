@@ -7,8 +7,9 @@ import { ProjectMember } from "../models/projectMemberRole.model.js";
 
 
 
+
 export const createProject = asyncHandler (async (req, res) => {
-    const {name, description, settings} = req.body;
+    const {name, description, settings= {}} = req.body;
 
     // validation check
     if(!name || name.trim() === "") {
@@ -16,14 +17,15 @@ export const createProject = asyncHandler (async (req, res) => {
     }
 
     // create project In DB
+
     const project = await ProjectTable.create({
         name: name.trim(),
         description: description.trim(),
         createdBy: req.user._id,
         settings: {
-            visibility: settings?.visibility || "private",
-            defaultTaskStatus: settings?.defaultTaskStatus || "to-do",
-            allowGuestAccess: settings?.allowGuestAccess || false,
+            visibility: settings.visibility || "private",
+            defaultTaskStatus: settings.defaultTaskStatus || "to-do",
+            allowGuestAccess: settings.allowGuestAccess || false,
         },
         metadata: {
             totalMembers: 1,
@@ -54,6 +56,25 @@ export const createProject = asyncHandler (async (req, res) => {
         // response to client
         res.status(201).json(new ApiResponse(201, "Project created successfully", project))
     });
+
+
+// -----------------------list my all projects-----------------------------
+export const listMyProjects = asyncHandler (async (req, res) => {
+    // finding all project on behalf of user ID
+    const membership = await ProjectMember.find({user: req.user._id}).populate("project").sort({createdAt: -1});
+ 
+    // notified membership array to get only 2 properties project and role and permissions
+    const projects = membership
+    .filter((m) => (m.project && !m.project.isArchived))
+    .map((m) => ({
+        project: m.project,
+        role: m.role,
+        permissions: m.permissions,
+    }));
+
+    // response to client
+    res.status(200).json(new ApiResponse(200, "Projects listed successfully", projects))
+})
 
     
     

@@ -1,6 +1,6 @@
 import express from 'express';
 import { verifyJWT } from '../middlewares/auth.middleware.js';
-import { createProject } from '../controllers/projects.controllers.js';
+import { createProject, listMyProjects  } from '../controllers/projects.controllers.js';
 
 const router = express.Router();
 
@@ -8,6 +8,8 @@ router.use(verifyJWT)
 
 
 // httplocalhost:8000/api/v1/project
-router.route("/").post(createProject)
+
+// APIs
+router.route("/").post(createProject).get(listMyProjects)
 
 export default router;
