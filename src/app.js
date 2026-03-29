@@ -8,6 +8,7 @@ import ProjectMemberRouter from "./routes/projectMembers.routes.js";
 import TaskRouter from "./routes/task.routes.js";
 import subTaskRouter from "./routes/subtask.routes.js";
 import noteRouter from "./routes/note.routes.js"
+import aiRouter from "./routes/ai.routes.js"
 
 
 const app = express();
@@ -49,4 +50,5 @@ app.use("/api/v1/tasks", TaskRouter) //
 app.use("/api/v1/tasks", subTaskRouter) 
 app.use("/api/v1/notes", noteRouter) 
 
+app.use("/api/v1/ai", aiRouter)
 export default app;

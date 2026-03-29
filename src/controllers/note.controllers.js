@@ -1,6 +1,6 @@
-import { asyncHandler } from "../utils/async-handler";
+import { asyncHandler } from "../utils/async-handler.js";
 import { ApiError } from "../utils/api-error.js";  
-import {projectTable} from "../models/project.models.js"
+import { ProjectTable } from "../models/project.models.js"
 import { noteTable } from "../models/note.model.js";
 import { ApiResponse } from "../utils/api-response.js";
 
@@ -19,7 +19,7 @@ export const createNote = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Title and content are required");
     }
 
-    const project  = await projectTable.findById(projectId);
+    const project  = await ProjectTable.findById(projectId);
     if (!project) {
         throw new ApiError(404, "Project not found");
     }

@@ -11,7 +11,7 @@ const client = new OpenAI({
 
 const response = await client.responses.create({
     model: "gpt-4.1-mini",
-    input: "Hey, how are you doin today"
+    input: "Hey, how are you doing today,"
 })
 
 console.log("✅", response.output_text)
