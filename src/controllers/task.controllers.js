@@ -4,6 +4,7 @@ import { ApiError } from "../utils/api-error.js";
 import { ProjectMember } from "../models/projectMemberRole.model.js";
 import {ApiResponse} from "../utils/api-response.js";
 import { Task } from "../models/task.model.js";
+import { deleteFromS3 } from "../utils/s3-delete.js";
 
 
 
@@ -18,9 +19,7 @@ export const createTask = asyncHandler (async (req, res) => {
         priority= "medium", // default priority when creating a task
         status = "todo", // default status when creating a task
         estimatedHours,
-        tags,
-        attachments,
-        path
+        tags
     } = req.body;
 
     // if title is not provided, return an error
@@ -55,6 +54,18 @@ export const createTask = asyncHandler (async (req, res) => {
         throw new ApiError(400, `Invalid priority value. Valid options are: ${validatePriority.join(", ")}`)
     }
 
+
+    // handle attachments for s3 bucket
+    const attachments = req.files?.map((file) => ({
+        url: file.location,
+        key: file.key,
+        filename: file.originalname,
+        mimetype: file.mimetype,
+        size: file.size,
+        uploadedBy: req.user._id
+    }))
+    
+    // Create new task
     const newTask = await Task.create({
         title:title,
         description: description,
@@ -63,11 +74,10 @@ export const createTask = asyncHandler (async (req, res) => {
         assignedBy: req.user._id,
         status: status,
         priority: priority,
-        dueDate: dueDate || null,
-        estimatedHours: estimatedHours || 0,
+        dueDate: dueDate || null,                                                                              estimatedHours: estimatedHours || 0,
         tags: tags,
         attachments: attachments || [],
-        path: path,
+        
     })
     // if task  creation fail, return an error
     if(!newTask) {
@@ -266,6 +276,9 @@ export const updateTask = asyncHandler(async (req, res) => {
 //------------------- delete task------------------only admin can delete task
 export const deleteTask = asyncHandler(async (req, res) => {
     const { projectId, taskId } = req.params
+    if (!projectId || !taskId) {
+    throw new ApiError(400, "Project ID and Task ID are required");
+}
 
     // verify project exist
     const project = await ProjectTable.findById(projectId)
@@ -283,9 +296,15 @@ export const deleteTask = asyncHandler(async (req, res) => {
     if(req.membership.role !== "admin") {
         throw new ApiError(403, "Access denied. You are not an admin of this project")
         } 
+
+    if(task.attachments?.length > 0) {
+        await Promise.all(
+            task.attachments.map(file => deleteFromS3(file.key))
+        )
+    }
         
     // delete task
-    await Task.deleteOne({_id: taskId})
+    await Task.findByIdAndDelete(taskId)
 
     // update project metadata
     await ProjectTable.findByIdAndUpdate(projectId, {
