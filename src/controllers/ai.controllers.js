@@ -446,7 +446,7 @@ export const prioritizeTask = asyncHandler(async (req, res) => {
 })
 
 
-//------------------------summarizeMeeting-----------------------
+//------------------------Summarize-Meeting-----------------------
 export const summarizeMeeting = asyncHandler(async (req, res) => {
   const {notes, projectId, meetingDate} = req.body
 

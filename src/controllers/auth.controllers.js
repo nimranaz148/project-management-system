@@ -342,7 +342,7 @@ const forgetPasswordRequest = asyncHandler( async (req, res) => {
 const resetForgetPassword = asyncHandler( async (req, res) => {
     // getting reset token from params
     const { resetToken } = req.params //reset token = unHashedToken 
-    const  newPassword  = "password123"        //req.body
+    const  { newPassword }  = req.body        //req.body
     
     // if token is not present, throw error
     if (!resetToken) {
@@ -406,6 +406,42 @@ const changeCurrentPassword = asyncHandler( async (req, res) => {
 })
 
 
+
+export const cbfunction = async (req, res) => {
+    const user = req.user
+    const accessToken = user.generateAccessToken()
+    const refreshToken = user.generateRefreshToken()
+
+    user.refreshToken = refreshToken
+    await user.save({ validateBeforeSave: false })
+
+    const options = {
+        httpOnly: true,
+        secure:true,
+    }
+
+    return res.status(200).cookie("accessToken", accessToken, options)
+    .cookie("refreshToken", refreshToken, options)
+    .json(new ApiResponse(200, {user: user, accessToken, refreshToken}, "Google login successful"))
+}
+
+
+
+export const updateAvatar =  async (req, res) => {
+    if(!req.file){
+        throw new ApiError(400, "Avatar image is required")
+    }
+
+    const user = await userTable.findByIdAndUpdate(req.user._id, {
+        avatar: req.file.location
+    },
+    {new:true}
+   ).select("-password -refreshToken")
+
+   return res.status(200).json(
+        new ApiResponse(200, {avatar: user.avatar}, "Avatar updated successfully")
+    )
+}
 
 export { registerUser, login, verifyEmail, logoutUser, resendEmailVerification, getCurrentUser, refreshAccesToken, forgetPasswordRequest, resetForgetPassword, changeCurrentPassword }
 

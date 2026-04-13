@@ -1,6 +1,7 @@
 import express from 'express';
-import { registerUser, login, verifyEmail, logoutUser , resendEmailVerification, getCurrentUser, refreshAccesToken, forgetPasswordRequest, resetForgetPassword, changeCurrentPassword} from '../controllers/auth.controllers.js';
+import { registerUser, login, verifyEmail, logoutUser , resendEmailVerification, getCurrentUser, refreshAccesToken, forgetPasswordRequest, resetForgetPassword, changeCurrentPassword, cbfunction, updateAvatar} from '../controllers/auth.controllers.js';
 import {verifyJWT} from '../middlewares/auth.middleware.js'
+import { uploadAvatar } from '../middlewares/upload.middleware.js';
 
 const router = express.Router();
 
@@ -29,5 +30,29 @@ router.route("/reset-password/:resetToken").post(resetForgetPassword) // reset p
 
 router.route("/change-password").post(verifyJWT, changeCurrentPassword) // change password route
 
+
+//-------------------Google Oauth Routes-----------------------------
+import passport from "../config/passport.js";
+import { passAuth } from '../middlewares/auth.middleware.js';
+// ---------------------------LOGIN Google Oauth Routes-----------------------------
+router.route("/google").get( passport.authenticate("google", { scope: ["profile", "email"] })) 
+   
+//----------------Googlr redirect back here after login---------
+router.route("/google/callback").all(passAuth).get(cbfunction)
+
+//-------------------failed login redirect----------------
+router.route("/google/failure").get((req, res) => {
+    return res.status(401).json({
+        message: "Google Authentication Failed /google/failure"
+    })
+})
+
+//-------------------------------------------------------------------------
+
+
+
+
+// to update avatar
+router.route("/update-avatar").all(verifyJWT, uploadAvatar.single("avatar")).patch(updateAvatar)
 
 export default router;

@@ -8,12 +8,8 @@ import crypto from "crypto";
 
 const userSchema = new Schema({
     avatar: {
-        type: {
-            url: String,
-        },
-        default: {
-            url: "https://placehold.co/400x400",
-        }
+        type: String,
+        default: null,
     },
     username: {
         type: String,
@@ -56,6 +52,10 @@ const userSchema = new Schema({
     emailVerificationTokenExpiry: {
         type: Date,
     },
+    googleId: {
+        type: String,
+        default: null,
+    }
 }, {
     timestamps: true,
 });

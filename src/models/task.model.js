@@ -24,19 +24,18 @@ const taskSchema = new Schema({
 
     tags: [{type: String, maxlength: [50, "Tag must be less than 50 characters"], trim: true}],
 
-    attachments:[{
-        filename: {type: String,
+     attachments: [{
+        filename: {
+            type: String,
             trim: true,
-            maxlength: [255, "Filename cannot exceed 255 characters"]
+            maxlength: [200, "Filename must be less than 200 characters"]
         },
         path: {
             type: String,
-            required: true,
             trim: true,
-            maxlength: [500, "File path cannot exceed 500 characters"]
+            maxlength: [500, "Path must be less than 500 characters"]
         }
-       
-     }],
+    }],
     
         
 

@@ -3,6 +3,7 @@ import { ApiError } from "../utils/api-error.js";
 import { ProjectTable } from "../models/project.models.js"
 import { noteTable } from "../models/note.model.js";
 import { ApiResponse } from "../utils/api-response.js";
+import { deleteFromS3 } from "../utils/s3-delete.js";
 
 
 
@@ -24,6 +25,16 @@ export const createNote = asyncHandler(async (req, res) => {
         throw new ApiError(404, "Project not found");
     }
 
+    // handle attachments for s3 bucket
+    const attachments = req.files?.map((file) => ({
+        url: file.location,
+        key: file.key,
+        filename: file.originalname,
+        mimetype: file.mimetype,
+        size: file.size,
+        uploadedBy: req.user._id
+    }))
+
     const note = await noteTable.create({
         title: title,
         content: content,
@@ -31,14 +42,15 @@ export const createNote = asyncHandler(async (req, res) => {
         createdBy: req.user._id,
         lastEditedBy: req.user._id,
         tags: tags || [],
-        isPinned: isPinned || false
+        isPinned: isPinned || false,
+        attachments: attachments || []
     })
     return res.status(201).json(new ApiResponse(201, note, "Note created successfully"))
 
 })
 
 
-// -------------------list notes------------------
+// -------------------LIst notes------------------
 export const listNotes = asyncHandler(async (req, res) => {
     const { projectId } = req.params;
     if (!projectId) {
@@ -68,11 +80,11 @@ export const updateNote = asyncHandler(async (req, res) => {
     }
 
     const {title, content, tags, isPinned = false } = req.body
-    if(!title && !content & !tags){
+    if(!title && !content && !tags){
         throw new ApiError(400, "At least one field (title, content, tags) is required to update")
     }
 
-    const project  = await projectTable.findById(projectId);
+    const project  = await ProjectTable.findById(projectId);
     if (!project) {
         throw new ApiError(404, "Project not found");
     }
@@ -99,7 +111,7 @@ note.version += 1
 // updating 
 if (title) note.title = title
 if (content) note.content = content
-if(tags) note.tags= tas
+if(tags) note.tags= tags
 if(isPinned !== undefined) note.isPinned = isPinned
 
 note.lastEditedBy = req.user._id
@@ -116,11 +128,11 @@ return res.status(200).json(new ApiResponse(200, note, "Notes updated successful
 //----------------------------delete note------------------
 export const deleteNote = asyncHandler(async (req, res) => {
     const { projectId, noteId} = req.params
-    if(!projectId || noteId){
+    if(!projectId || !noteId){
         throw new ApiError(400, "Project ID and Note ID are required");
     }
 
-    const project  = await projectTable.findById(projectId);
+    const project  = await ProjectTable.findById(projectId);
     if (!project) {
         throw new ApiError(404, "Project not found");
     }
@@ -130,10 +142,14 @@ export const deleteNote = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Note not found"); 
     }
 
+    if(note.attachments.length > 0) {
+            await Promise.all(
+                note.attachments.map(file => deleteFromS3(file.key))
+            )
+        }
+
     await noteTable.findByIdAndDelete(noteId)
 
     return res.status(200).json(new ApiResponse(200, null , "Note deleted successfully"))
-
-
 
 })
