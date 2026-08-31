@@ -6,9 +6,11 @@ import { sendEmail, emailverificationmailgencontent } from "../utils/mail.js"
 import crypto from "crypto"
 import jwt from "jsonwebtoken"
 
-
-
-
+const cookieOptions = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+};
 
 const registerUser = asyncHandler( async (req, res) => {
     // getting data from client
@@ -100,10 +102,7 @@ const login = asyncHandler( async (req, res) => {
     await existingUser.save({ validateBeforeSave: false })
 
     // setting httpOnly cookies
-    const options = {
-        httpOnly: true,
-        secure:true,
-    }
+    const options = cookieOptions;
 
     // returning response to client with user details and tokens
     return res.status(200)
@@ -182,10 +181,7 @@ const logoutUser = asyncHandler( async (req, res) => {
     })
 
     // option to clear cookies
-    const options = {
-        httpOnly: true,
-        secure:true,
-    }
+    const options = cookieOptions;
 
     // send response to client
     return res
@@ -243,7 +239,7 @@ const resendEmailVerification = asyncHandler(async (req, res) => {
 const getCurrentUser = asyncHandler( async (req, res) => {
     // send response to client with current logged in user details from req.user set in verifyJWT middleware
     return res.status(200).json(
-        new ApiResponse(200, {user: req.user}, "Current user fetched successfully")
+        new ApiResponse(200, "Current user fetched successfully", {user: req.user})
     )
 })
 
@@ -279,10 +275,7 @@ const refreshAccesToken = asyncHandler( async (req, res) => {
         const newAccessToken = user.generateAccessToken()
 
         // option to clear cookies
-       const options = { 
-        httpOnly: true,
-            secure:true,
-    }
+        const options = cookieOptions;
 
         // send response to client with new access token
         return res.status(200)
@@ -395,6 +388,10 @@ const changeCurrentPassword = asyncHandler( async (req, res) => {
     // check if old password is correct
     const isOldPasswordCorrect = await user.isPasswordCorrect(oldPassword)
 
+    if (!isOldPasswordCorrect) {
+        throw new ApiError(400, "Invalid old password")
+    }
+
     // update users password
     user.password = newPassword // set new password
     await user.save({ validateBeforeSave: false })
@@ -415,10 +412,7 @@ export const cbfunction = async (req, res) => {
     user.refreshToken = refreshToken
     await user.save({ validateBeforeSave: false })
 
-    const options = {
-        httpOnly: true,
-        secure:true,
-    }
+    const options = cookieOptions;
 
     return res.status(200).cookie("accessToken", accessToken, options)
     .cookie("refreshToken", refreshToken, options)

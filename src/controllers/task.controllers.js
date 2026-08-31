@@ -5,8 +5,9 @@ import { ProjectMember } from "../models/projectMemberRole.model.js";
 import {ApiResponse} from "../utils/api-response.js";
 import { Task } from "../models/task.model.js";
 import { deleteFromS3 } from "../utils/s3-delete.js";
-
-
+import { getIO } from "../config/socket.js";
+import { logActivity } from "../utils/activity-logger.js";
+import { Notification } from "../models/notification.model.js";
 
 export const createTask = asyncHandler (async (req, res) => {
     // verify project exist
@@ -32,17 +33,14 @@ export const createTask = asyncHandler (async (req, res) => {
         throw new ApiError(404, "Project not found")
     }
 
-    const member = await ProjectMember.findOne({project: projectId, user: assignedTo})
-    if(!member) {
-        throw new ApiError(404, "Project member not found")
+    if (assignedTo) {
+        const member = await ProjectMember.findOne({project: projectId, user: assignedTo})
+        if(!member) {
+            throw new ApiError(404, "Project member not found")
+        }
     }
     
-    // validate due date
-    if(dueDate && new Date(dueDate) < new Date()) {
-        throw new ApiError(400, "Due date cannot be in the past")
-    }
-
-    //---------- validate status and priority
+    // validate status and priority
     const validateStatus = ["todo", "in-progress", "done"]
     const validatePriority = ["low", "medium", "high", "critical"]
 
@@ -90,6 +88,31 @@ export const createTask = asyncHandler (async (req, res) => {
         $set: { "metadata.lastActivity": new Date() } // update last activity
     }).exec()
 
+    // emit real-time event to project room
+    try {
+        getIO().to(`project_${projectId}`).emit("task_created", { task: newTask });
+        
+        // If assigned to a specific user, notify them directly
+        if (assignedTo && assignedTo.toString() !== req.user._id.toString()) {
+            const notif = await Notification.create({
+                recipient: assignedTo,
+                sender: req.user._id,
+                type: "task_assigned",
+                title: "New Task Assigned",
+                message: `You were assigned a new task: ${title}`,
+                relatedEntity: newTask._id,
+                entityModel: "Task"
+            });
+            
+            getIO().to(assignedTo.toString()).emit("new_notification", notif);
+        }
+    } catch (error) {
+        console.error("Socket error on createTask:", error);
+    }
+
+    // Log the activity
+    logActivity(req.user._id, "created", "task", newTask._id, {}, req);
+
     // send response to client
     return res.status(201).json(
         new ApiResponse(201, "Task created successfully", newTask))
@@ -110,7 +133,7 @@ export const listTask = asyncHandler(async (req, res) => {
     }
 
     // extract query parameters for filtering
-    const { status, priority, assignedTo, tags, search, sort, page, limit, dueDate } = req.query;
+    const { status, priority, assignedTo, tags, search, sort, page, limit, dueDate, dueDateGte, dueDateLte } = req.query;
 
     // build filter object based on provided filters
     const filter = { project: projectId };
@@ -139,6 +162,7 @@ export const listTask = asyncHandler(async (req, res) => {
     // fetch task + total count in parallel
     const [tasks, totalCount] = await Promise.all([
         Task.find(filter)
+            .populate("assignedTo", "username fullName email avatar")
             .sort({ [sortField]: sortOrder })
             .skip(skip)
             .limit(limitNumber),
@@ -216,6 +240,11 @@ export const updateTask = asyncHandler(async (req, res) => {
         throw new ApiError(404, "Task not found")
     }
 
+    // Only Admin or the user assigned to the task can update it
+    if (req.membership.role !== "admin" && task.assignedTo?.toString() !== req.user._id.toString()) {
+        throw new ApiError(403, "You can only update tasks assigned to you");
+    }
+
     //---------- validate status and priority
     const validateStatus = ["todo", "in-progress", "done"]
     const validatePriority = ["low", "medium", "high", "critical"]
@@ -265,7 +294,37 @@ export const updateTask = asyncHandler(async (req, res) => {
     await task.save()
 
     // update project metadata (e.g., last activity)
-    await ProjectTable.findByIdAndUpdate(projectId, { lastActivity: new Date() }, { new: true }).exec()
+    await ProjectTable.findByIdAndUpdate(projectId, { "metadata.lastActivity": new Date() }, { new: true }).exec()
+
+    // emit real-time event to project room
+    try {
+        const populatedTask = await Task.findById(task._id).populate("assignedTo", "username fullName email avatar");
+        getIO().to(`project_${projectId}`).emit("task_updated", { task: populatedTask });
+
+        // Notify admins if status changed by a member
+        if (status && status !== task.status) {
+            const admins = await ProjectMember.find({ project: projectId, role: "admin" });
+            for (const adm of admins) {
+                if (adm.user.toString() !== req.user._id.toString()) {
+                    const notif = await Notification.create({
+                        recipient: adm.user,
+                        sender: req.user._id,
+                        type: status === "done" ? "task_completed" : "task_updated",
+                        title: status === "done" ? "Task Completed! 🎉" : "Task Status Updated",
+                        message: `${req.user.fullName || req.user.username || 'A member'} moved "${task.title}" to ${status}`,
+                        relatedEntity: task._id,
+                        entityModel: "Task"
+                    });
+                    getIO().to(adm.user.toString()).emit("new_notification", notif);
+                }
+            }
+        }
+    } catch (error) {
+        console.error("Socket error on updateTask:", error);
+    }
+
+    // Log the activity
+    logActivity(req.user._id, "updated", "task", task._id, req.body, req);
 
     // send response to client
     return res.status(200).json(
@@ -311,6 +370,16 @@ export const deleteTask = asyncHandler(async (req, res) => {
         $inc: { "metadata.totalTasks": -1 }, // decrement total tasks by 1
         $set: { "metadata.lastActivity": new Date() } // update last activity
     }).exec()
+
+    // emit real-time event to project room
+    try {
+        getIO().to(`project_${projectId}`).emit("task_deleted", { taskId });
+    } catch (error) {
+        console.error("Socket error on deleteTask:", error);
+    }
+
+    // Log the activity
+    logActivity(req.user._id, "deleted", "task", taskId, {}, req);
 
     // send response to client
     return res.status(200).json(

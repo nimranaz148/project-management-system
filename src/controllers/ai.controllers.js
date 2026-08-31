@@ -8,16 +8,19 @@ import { ApiResponse } from "../utils/api-response.js";
 
 
 
-const askAI = async (systemPrompt, userPrompt) => {
-    
-    const response = await openai.responses.create({
-        model: "gpt-4.1-mini",
-        input: userPrompt,
-        instructions: systemPrompt,
-        temperature: 0.7,
-    });
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
-    let content = response.output_text;
+const getGenAI = () => new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+
+const askAI = async (systemPrompt, userPrompt) => {
+    const genAI = getGenAI();
+    const model = genAI.getGenerativeModel({ 
+        model: "gemini-3.6-flash",
+        systemInstruction: systemPrompt 
+    });
+    
+    const aiResult = await model.generateContent(userPrompt);
+    let content = aiResult.response.text();
 
     // Strip markdown code fences if present
     content = content.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
@@ -493,7 +496,26 @@ export const summarizeMeeting = asyncHandler(async (req, res) => {
   const {result, metaData} = await askAI(sysPrompt, usrPrompt)
   metaData.processingTime = Date.now() - startTime
 
-  return res.status(200).json(new ApiResponse(200, {...result, metaData}, "Meeting summary generated successfully"))
-
+  return res.status(200).json(new ApiResponse(200, "Meeting summary generated successfully", {...result, metaData}))
 
 })
+
+export const aiChat = asyncHandler(async (req, res) => {
+    const { prompt } = req.body;
+    if (!prompt) throw new ApiError(400, "Prompt is required");
+    
+    try {
+        const genAI = getGenAI();
+        const model = genAI.getGenerativeModel({ 
+            model: "gemini-3.6-flash",
+            systemInstruction: "You are an expert AI Project Manager for Project Camp. Answer questions clearly and concisely."
+        });
+        
+        const aiResult = await model.generateContent(prompt);
+        const reply = aiResult.response.text();
+        return res.status(200).json(new ApiResponse(200, "AI responded successfully", { reply }));
+    } catch (error) {
+        console.error("🔥 GEMINI API ERROR:", error);
+        return res.status(200).json(new ApiResponse(200, "AI responded successfully", { reply: "My Gemini API key seems to be missing or invalid. Please check your backend .env file for GEMINI_API_KEY!" }));
+    }
+});

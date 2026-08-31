@@ -1,6 +1,6 @@
 import express from 'express';
 import { verifyJWT } from '../middlewares/auth.middleware.js';
-import { createProject, listMyProjects  } from '../controllers/projects.controllers.js';
+import { createProject, listMyProjects, getProjectDetails, updateProject, deleteProject } from '../controllers/projects.controllers.js';
 
 const router = express.Router();
 
@@ -11,5 +11,9 @@ router.use(verifyJWT)
 
 // APIs
 router.route("/").post(createProject).get(listMyProjects)
+router.route("/:projectId")
+    .get(getProjectDetails)
+    .put(updateProject)
+    .delete(deleteProject);
 
 export default router;

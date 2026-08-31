@@ -4,6 +4,8 @@ import { ApiError } from "../utils/api-error.js";
 import { ProjectMember } from "../models/projectMemberRole.model.js";
 import { ProjectTable } from "../models/project.models.js";
 import { userTable } from "../models/user.models.js";
+import { Notification } from "../models/notification.model.js";
+import { getIO } from "../config/socket.js";
 
 
 
@@ -13,11 +15,11 @@ export const listProjectMember = asyncHandler (async (req, res) => {
 
     // throw error if project ID is not provided or invalid
     if(!projectId) {
-        return res.status(400).json(new ApiError(400, "Project ID is required"))
+        throw new ApiError(400, "Project ID is required")
     }
 
     // find project members in DB using project ID and populate user details
-    const members = await ProjectMember.find({project: projectId}).populate("user", "name email")
+    const members = await ProjectMember.find({project: projectId}).populate("user", "username fullName email")
     .sort({createdAt: -1})
     
 
@@ -36,7 +38,7 @@ export const addProjectMember = asyncHandler (async (req, res) => {
 
     // throw error if project ID is not provided or invalid
     if(!projectId) {
-        return res.status(400).json(new ApiError(400, "Project ID is required"))
+        throw new ApiError(400, "Project ID is required")
     }
 
     // get email , role and permission from req.body
@@ -46,19 +48,19 @@ export const addProjectMember = asyncHandler (async (req, res) => {
     // verify project exist 
     const project = await ProjectTable.findById(projectId);
     if(!project) {
-        return res.status(404).json(new ApiError(404, "Project not found"))
+        throw new ApiError(404, "Project not found")
     }
 
     // find user in database using email
     const user = await userTable.findOne({email: email.toLowerCase().trim()})
     if(!user) {
-        return res.status(404).json(new ApiError(404, "User not found, please ask user to register first"))
+        throw new ApiError(404, "User not found, please ask user to register first")
     }
 
     // check if user is already a member of the project
     const existingMember = await ProjectMember.findOne({project: projectId, user: user._id})
     if(existingMember) {
-        return res.status(400).json(new ApiError(400, "User is already a member of the project.you cannot add same user twice"))
+        throw new ApiError(400, "User is already a member of the project.you cannot add same user twice")
     }
 
     // create new project member
@@ -66,6 +68,7 @@ export const addProjectMember = asyncHandler (async (req, res) => {
         project: projectId,
         user: user._id,
         role: role,
+        invitedBy: req.user._id,
         permissions: {
             canCreateTasks: permissions?.canCreateTasks  ?? true,
             canEditTasks: permissions?.canEditTasks ?? true,
@@ -82,7 +85,24 @@ export const addProjectMember = asyncHandler (async (req, res) => {
     })
     
     // populate user details in the new member object
-    const populatedNewMember = await ProjectMember.findById(newMember._id).populate("user", "name email")
+    const populatedNewMember = await ProjectMember.findById(newMember._id).populate("user", "username fullName email")
+    
+    // Create and emit notification for the invited user
+    if (user._id.toString() !== req.user._id.toString()) {
+        const project = await ProjectTable.findById(projectId);
+        const notif = await Notification.create({
+            recipient: user._id,
+            sender: req.user._id,
+            type: "project_invite",
+            title: "Project Invitation",
+            message: `You were added to the project: ${project?.name || 'A new project'}`,
+            relatedEntity: projectId,
+            entityModel: "Project"
+        });
+        
+        getIO().to(user._id.toString()).emit("new_notification", notif);
+    }
+
     // send response to client
     res.status(201).json(new ApiResponse(201, "Project member added successfully", populatedNewMember))
 
@@ -98,7 +118,7 @@ export const updateProjectMember = asyncHandler (async (req, res) => {
 
     // throw error if project ID is not provided or invalid
     if(!projectId) {
-        return res.status(400).json(new ApiError(400, "Project ID is required"))
+        throw new ApiError(400, "Project ID is required")
     }
     // GET role and permissions from req.body
      const {role, permissions} = req.body;
@@ -106,28 +126,36 @@ export const updateProjectMember = asyncHandler (async (req, res) => {
      // verify project exist 
      const project = await ProjectTable.findById(projectId);
     if(!project) {
-        return res.status(404).json(new ApiError(404, "Project not found"))
+        throw new ApiError(404, "Project not found")
     }
 
-    // find project member in database using project ID and user ID
-    const  projectMember = await ProjectMember.findOne({project: projectId, user: userId})
+    // find project member in database using project ID and user ID or member ID
+    const projectMember = await ProjectMember.findOne({
+        project: projectId,
+        $or: [
+            { user: userId },
+            { _id: userId }
+        ]
+    });
     if(!projectMember) {
-        return res.status(404).json(new ApiError(404, "Project member not found"))
+        throw new ApiError(404, "Project member not found")
     }
 
     // only allow admin to update member role and permissions
     if(req.membership.role !== "admin") {
-        return res.status(403).json(new ApiError(403, "You are not an admin of this project. Only project admin can update member role and permissions"))
+        throw new ApiError(403, "You are not an admin of this project. Only project admin can update member role and permissions")
     }
 
     // prevent removing last admin from the project(basic safety)
-   if(projectMember.role === "admin" && project.metadata.totalMembers === 1){
-        return res.status(400).json(new ApiError(400, "This project  must atleast have one admin. You cannot remove last admin from the project"))
-
+    if(projectMember.role === "admin" && role && role !== "admin") {
+        const adminCount = await ProjectMember.countDocuments({ project: projectId, role: "admin" });
+        if (adminCount <= 1) {
+            throw new ApiError(400, "This project must atleast have one admin. You cannot remove last admin from the project")
+        }
     } 
 
     // update member role and permissions
-    projectMember.role = role?? projectMember.role;
+    projectMember.role = role ?? projectMember.role;
     projectMember.permissions = {
         canCreateTasks: permissions?.canCreateTasks  ?? projectMember.permissions.canCreateTasks,
         canEditTasks: permissions?.canEditTasks ?? projectMember.permissions.canEditTasks,
@@ -138,7 +166,7 @@ export const updateProjectMember = asyncHandler (async (req, res) => {
     await projectMember.save()
 
     // populate user details in the updated member object
-    await projectMember.populate("user", "name email")
+    await projectMember.populate("user", "username fullName email")
 
     // send response to client
     res.status(200).json(new ApiResponse(200, "Project member updated successfully", projectMember))
@@ -154,25 +182,33 @@ export const deleteProjectMember = asyncHandler (async (req, res) => {
 
     // throw error if project ID is not provided or invalid
     if(!projectId) {
-        return res.status(400).json(new ApiError(400, "Project ID is required"))
+        throw new ApiError(400, "Project ID is required")
     }
 
      // verify project exist 
      const project = await ProjectTable.findById(projectId);
     if(!project) {
-        return res.status(404).json(new ApiError(404, "Project not found"))
+        throw new ApiError(404, "Project not found")
     }
 
-    // find project member in database using project ID and user ID
-    const  projectMember = await ProjectMember.findOne({project: projectId, user: userId})
+    // find project member in database using project ID and user ID or member ID
+    const projectMember = await ProjectMember.findOne({
+        project: projectId,
+        $or: [
+            { user: userId },
+            { _id: userId }
+        ]
+    });
     if(!projectMember) {
-        return res.status(404).json(new ApiError(404, "Project member not found"))
+        throw new ApiError(404, "Project member not found")
     }
 
      // prevent removing last admin from the project(basic safety)
-    if(projectMember.role === "admin" && project.metadata.totalMembers === 1){
-        return res.status(400).json(new ApiError(400, "This project  must atleast have one admin. You cannot remove last admin from the project"))
-
+    if(projectMember.role === "admin") {
+        const adminCount = await ProjectMember.countDocuments({ project: projectId, role: "admin" });
+        if (adminCount <= 1) {
+            throw new ApiError(400, "This project must atleast have one admin. You cannot remove the last admin from the project")
+        }
     } 
 
     // delete member from project

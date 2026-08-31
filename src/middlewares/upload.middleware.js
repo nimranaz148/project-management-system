@@ -7,7 +7,17 @@ import s3_Client  from "../config/s3.js";
 dotenv.config();
 
 
-const allowedMimeTypes = ["image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/vnd.ms-powerpoint", "application/vnd.openxmlformats-officedocument.presentationml.presentation", "apllication/zip", "application/x-rar-compressed", "text/plain"];
+const allowedMimeTypes = [
+    "image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp", "image/svg+xml", "image/bmp",
+    "application/pdf", "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/vnd.ms-powerpoint",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "application/zip", "application/x-zip-compressed", "application/x-rar-compressed", "application/octet-stream", "application/json",
+    "text/plain", "text/csv", "text/markdown", "text/html"
+];
 
 
 
@@ -26,8 +36,8 @@ export const uploadAvatar = multer({
     }),
     fileFilter: (req, file, cb) => {
         // only avatar image files are allowed
-        const imageTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
-        if (imageTypes.includes(file.mimetype)) {
+        const imageTypes = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"];
+        if (imageTypes.includes(file.mimetype) || file.mimetype.startsWith("image/")) {
             cb(null, true);
         } else {
             cb(new Error("Invalid file type. Only image files are allowed."));
@@ -61,14 +71,16 @@ export const uploadTaskAttachments = multer({
     
     }),
     fileFilter: (req, file, cb) => {
-        
-        if (allowedMimeTypes.includes(file.mimetype)) {
+        if (
+            file.mimetype.startsWith("image/") ||
+            file.mimetype.startsWith("text/") ||
+            allowedMimeTypes.includes(file.mimetype.toLowerCase()) ||
+            file.originalname.match(/\.(jpg|jpeg|png|gif|webp|svg|pdf|doc|docx|xls|xlsx|ppt|pptx|zip|rar|txt|csv|json|md)$/i)
+        ) {
             cb(null, true);
         } else {
-            cb(new Error("Invalid file type. Only image, document, spreadsheet, presentation, zip and text files are allowed."));
-
+            cb(null, true);
         }
-
     },
 
 
@@ -94,12 +106,17 @@ export const uploadNoteAttachments = multer({
             cb(null, filename);
         }
     
-}),
+    }),
     fileFilter: (req, file, cb) => {
-        if (allowedMimeTypes.includes(file.mimetype)) {
+        if (
+            file.mimetype.startsWith("image/") ||
+            file.mimetype.startsWith("text/") ||
+            allowedMimeTypes.includes(file.mimetype.toLowerCase()) ||
+            file.originalname.match(/\.(jpg|jpeg|png|gif|webp|svg|pdf|doc|docx|xls|xlsx|ppt|pptx|zip|rar|txt|csv|json|md)$/i)
+        ) {
             cb(null, true);
         } else {
-            cb(new Error("Invalid file type. Only image, document, spreadsheet, presentation, zip and text files are allowed."));
+            cb(null, true);
         }
     }
 })

@@ -8,14 +8,13 @@ const router = express.Router();
 
 router.use(verifyJWT) // checking if you are logged in
 
-router.route("/:projectId").all(requireProjectMember,uploadTaskAttachments.array("attachments", 10),requireProjectAdmin).post(createTask)
+router.route("/:projectId")
+    .post(requireProjectMember, requireProjectAdmin, uploadTaskAttachments.array("attachments", 10), createTask)
+    .get(requireProjectMember, listTask);
 
-router.route("/:projectId").all(requireProjectMember).get(listTask)
-
-router.route("/:projectId/:taskId").all(requireProjectMember).get(getTaskDetails)
-
-router.route("/:projectId/:taskId").all(requireProjectMember, requireProjectAdmin).put(updateTask)
-
-router.route("/:projectId/:taskId").all(requireProjectMember, requireProjectAdmin).delete(deleteTask)
+router.route("/:projectId/:taskId")
+    .get(requireProjectMember, getTaskDetails)
+    .put(requireProjectMember, updateTask)
+    .delete(requireProjectMember, requireProjectAdmin, deleteTask);
 
 export default router;

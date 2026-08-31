@@ -1,3 +1,5 @@
+// src\middlewares\project.middleware.js
+
 import { ProjectMember } from "../models/projectMemberRole.model.js";
 import { asyncHandler } from "../utils/async-handler.js";
 import { ApiError } from "../utils/api-error.js";
@@ -13,7 +15,7 @@ export const requireProjectMember = asyncHandler (async (req, res, next) => {
          user: req.user._id
     })
     if(!membership) {
-        return res.status(403).json(new ApiError(403, "Access denied. You are not a member of this project"))
+        throw new ApiError(403, "Access denied. You are not a member of this project")
     }
 
     // attach membership to request object for further use

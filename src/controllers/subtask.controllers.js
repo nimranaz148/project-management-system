@@ -10,122 +10,105 @@ import { subtaskTable } from "../models/subtask.model.js";
 
 // -------------------Subtask controllers------------------
 export const listSubTasks = asyncHandler(async (req, res) => {
-        // get project id from url
-        const {projectId, taskId} = req.params;
+    const { projectId, taskId } = req.params;
 
-        // validate projectId and taskId
-        if (!(projectId && taskId)) {
-            throw new ApiError("Project ID and Task ID are Missing", 400);
-        }
+    if (!(projectId && taskId)) {
+        throw new ApiError(400, "Project ID and Task ID are missing");
+    }
 
-         const task = await Task.findOne({ _id: taskId, project: projectId })
-         if (!task) {
-            throw new ApiError("Task not found into Database because of wrong task ID or project ID", 404);
-        }
+    const task = await Task.findOne({ _id: taskId, project: projectId });
+    if (!task) {
+        throw new ApiError(404, "Task not found");
+    }
 
-        // projectid , taskid ==> subtaskd -> database 
-        const subtasks = await subtaskTable.find({ task : taskId })
+    const subtasks = await subtaskTable.find({ task: taskId }).sort({ createdAt: 1 });
 
-        if (subtasks.length < 1){
-            return res.status(200).json(new ApiResponse(200, subtasks, "No Subtasks found in database for this task"))
-        }
-
-        return res.status(200).json(new ApiResponse(200, subtasks, "Subtasks fetched successfully"))
-
-})
+    return res.status(200).json(new ApiResponse(200, subtasks, "Subtasks fetched successfully"));
+});
 
 
 // --------------------create subtask
 export const createSubTasks = asyncHandler(async (req, res) => {
-    const {projectId, taskId} = req.params;
+    const { projectId, taskId } = req.params;
 
     if (!(projectId && taskId)) {
-        throw new ApiError("Project ID and Task ID are Missing", 400);
+        throw new ApiError(400, "Project ID and Task ID are missing");
     }
 
-     // find task in database with project id and task id
-    const task = await Task.findOne({ _id: taskId, project: projectId })
+    const task = await Task.findOne({ _id: taskId, project: projectId });
     if (!task) {
-        throw new ApiError("Task not found into Database because of wrong task ID or project ID soo you can't create subtask", 404);
+        throw new ApiError(404, "Task not found");
     }
 
+    if (!req.body.title?.trim()) {
+        throw new ApiError(400, "Subtask title is required");
+    }
 
-
-    // create subtask in database
     const subtask = await subtaskTable.create({
-        title: req.body.title,
+        title: req.body.title.trim(),
         task: taskId,
         project: projectId,
         createdBy: req.user._id
-    })
+    });
 
-    return res.status(201).json(new ApiResponse(201, subtask, "Subtask created successfully"))
-
-})
+    return res.status(201).json(new ApiResponse(201, subtask, "Subtask created successfully"));
+});
 
 
 // --------------------update subtask
 export const updateSubTasks = asyncHandler(async (req, res) => {
-    const {projectId, taskId, subtaskId} = req.params;
+    const { projectId, taskId, subtaskId } = req.params;
 
     if (!(projectId && taskId && subtaskId)) {
-        throw new ApiError("Project ID, Task ID and Subtask ID are Missing", 400);
+        throw new ApiError(400, "Project ID, Task ID and Subtask ID are missing");
     }
 
-    const {title, isCompleted} = req.body;
-    if (title && isCompleted === undefined) {
-        throw new ApiError("At least one field is required to update subtask", 400);
+    const { title, isCompleted } = req.body;
+    if (title === undefined && isCompleted === undefined) {
+        throw new ApiError(400, "At least one field is required to update subtask");
     }
 
-    // find task in database with project id and task id
-    const task = await Task.findOne({ _id: taskId, project: projectId })
+    const task = await Task.findOne({ _id: taskId, project: projectId });
     if (!task) {
-        throw new ApiError("Task not found into Database because of wrong task ID or project ID ", 404);
+        throw new ApiError(404, "Task not found");
     }
 
-    // find subtask in database with subtask id and task id
-    const subtask = await subtaskTable.findOne({ _id: subtaskId, task: taskId })
+    const subtask = await subtaskTable.findOne({ _id: subtaskId, task: taskId });
     if (!subtask) {
-        throw new ApiError("Subtask not found into Database because of wrong subtask ID or task ID ", 404);
+        throw new ApiError(404, "Subtask not found");
     }
 
-    // database manipulation
     if (title !== undefined) subtask.title = title;
-    if (isCompleted == true) {
+    if (isCompleted !== undefined) {
         subtask.isCompleted = isCompleted;
-        subtask.comparedAt = new Date();
- }
+        subtask.comparedAt = isCompleted ? new Date() : null;
+        subtask.completedBy = isCompleted ? req.user._id : null;
+    }
 
-   await subtask.save();
-   
-   return res.status(200).json(new ApiResponse(200, subtask, "Subtask updated successfully"))
+    await subtask.save();
 
-})
+    return res.status(200).json(new ApiResponse(200, subtask, "Subtask updated successfully"));
+});
 
 // --------------------delete subtask
-
 export const deleteSubTasks = asyncHandler(async (req, res) => {
-    const {projectId, taskId, subtaskId} = req.params;
+    const { projectId, taskId, subtaskId } = req.params;
 
     if (!(projectId && taskId && subtaskId)) {
-        throw new ApiError("Project ID, Task ID and Subtask ID are Missing", 400);
+        throw new ApiError(400, "Project ID, Task ID and Subtask ID are missing");
     }
 
-    // find task in database with project id and task id
-    const task = await Task.findOne({ _id: taskId, project: projectId })
+    const task = await Task.findOne({ _id: taskId, project: projectId });
     if (!task) {
-        throw new ApiError("Task not found into Database because of wrong task ID or project ID ", 404);
+        throw new ApiError(404, "Task not found");
     }
 
-    // find subtask in database with subtask id and task id
-    const subtask = await subtaskTable.findOne({ _id: subtaskId, task: taskId, project: projectId })
+    const subtask = await subtaskTable.findOne({ _id: subtaskId, task: taskId, project: projectId });
     if (!subtask) {
-        throw new ApiError("Subtask not found into Database because of wrong subtask ID or task ID ", 404);
+        throw new ApiError(404, "Subtask not found");
     }
 
-    // delete subtask from database
-    await subtaskTable.deleteOne({ _id: subtaskId, task: taskId })
+    await subtaskTable.deleteOne({ _id: subtaskId, task: taskId });
 
-    return res.status(200).json(new ApiResponse(200, null, "Subtask deleted successfully"))
-
-})
+    return res.status(200).json(new ApiResponse(200, null, "Subtask deleted successfully"));
+});

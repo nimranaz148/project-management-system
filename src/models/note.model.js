@@ -1,5 +1,86 @@
-import mongoose ,{Schema} from "mongoose";
+// import mongoose ,{Schema} from "mongoose";
 
+
+// const versionSchema = new Schema({
+//     title: {
+//         type: String,
+//         required: true
+//     },
+//     content: {
+//         type: String,
+//         required: true
+//     },
+//     editedBy: {
+//         type: mongoose.Types.ObjectId,
+//         ref: "User",
+//         required: true
+//     },
+//     editedAt: {
+//         type: Date,
+//         default: Date.now
+//     }
+// }, {_id: true})
+
+
+// const noteSchema = new Schema({
+//     title:{
+//         type: String,
+//         required: true
+//     },
+//     content: {
+//         type: String,
+//         required: true
+//     },
+//     projectId: {
+//         type: mongoose.Types.ObjectId,
+//         ref: "Project",
+//         required: true
+//     },
+//     createdBy: {
+//         type: mongoose.Types.ObjectId,
+//         ref: "User",
+//         required: true
+//     },
+//     lastEditedBy: {
+//         type: mongoose.Types.ObjectId,
+//         ref: "User",
+//         required: true
+//     },
+//     tags: [{
+//         type: String
+//     }],
+//     isPinned: {
+//         type: Boolean,
+//         default: false
+//     },
+//     version: {
+//         type: Number,
+//         default: 1
+//     },
+//     attachments: [{
+//         filename: {
+//             type: String,
+//             trim: true,
+//             maxlength: [200, "Filename must be less than 200 characters"]
+//         },
+//         path: {
+//             type: String,
+//             trim: true,
+//             maxlength: [500, "Path must be less than 500 characters"]
+//         }
+//     }],
+    
+//     versionHistory: [ versionSchema ]
+      
+// }, {timestamps: true})
+
+// export const noteTable = mongoose.model("Note", noteSchema);
+
+
+
+
+
+import mongoose, { Schema } from "mongoose";
 
 const versionSchema = new Schema({
     title: {
@@ -19,11 +100,40 @@ const versionSchema = new Schema({
         type: Date,
         default: Date.now
     }
-}, {_id: true})
+}, { _id: true })
+
+
+const attachmentSchema = new Schema({
+    filename: {
+        type: String,
+        trim: true,
+        maxlength: [200, "Filename must be less than 200 characters"]
+    },
+    key: {
+        type: String,
+        required: true,
+        trim: true,
+    },
+    url: {
+        type: String,
+        required: true,
+        trim: true,
+    },
+    mimetype: {
+        type: String,
+    },
+    size: {
+        type: Number,
+    },
+    uploadedBy: {
+        type: mongoose.Types.ObjectId,
+        ref: "User"
+    }
+}, { _id: true })
 
 
 const noteSchema = new Schema({
-    title:{
+    title: {
         type: String,
         required: true
     },
@@ -57,21 +167,9 @@ const noteSchema = new Schema({
         type: Number,
         default: 1
     },
-    attachments: [{
-        filename: {
-            type: String,
-            trim: true,
-            maxlength: [200, "Filename must be less than 200 characters"]
-        },
-        path: {
-            type: String,
-            trim: true,
-            maxlength: [500, "Path must be less than 500 characters"]
-        }
-    }],
-    
-    versionHistory: [ versionSchema ]
-      
-}, {timestamps: true})
+    attachments: [attachmentSchema],
+    versionHistory: [versionSchema]
+
+}, { timestamps: true })
 
 export const noteTable = mongoose.model("Note", noteSchema);

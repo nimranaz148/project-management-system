@@ -1,11 +1,13 @@
 import express from "express"
 import { verifyJWT } from "../middlewares/auth.middleware.js"
 import { requireProjectMember } from "../middlewares/project.middleware.js"
-import {suggestTasks, analyzeRisks, predictTimeline, balanceWorkload, smartassignTask, prioritizeTask, summarizeMeeting} from "../controllers/ai.controllers.js"
+import {suggestTasks, analyzeRisks, predictTimeline, balanceWorkload, smartassignTask, prioritizeTask, summarizeMeeting, aiChat} from "../controllers/ai.controllers.js"
 
 const router = express.Router()
 
 router.use(verifyJWT)
+
+router.route("/chat").post(aiChat)
 
 router.route("/suggest-tasks/:projectId").all(requireProjectMember).post(suggestTasks)
 
