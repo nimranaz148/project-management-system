@@ -2,73 +2,107 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Lenis from "lenis";
-import { TextSphere } from "@/components/ui/text-sphere";
+import { 
+  Sparkles, 
+  Zap, 
+  ShieldCheck, 
+  Layers, 
+  Clock, 
+  Radio, 
+  Bot, 
+  CheckCircle2, 
+  ArrowRight, 
+  Play, 
+  Terminal, 
+  FileText,
+  Users2,
+  Cpu,
+  BarChart3,
+  Flame,
+  Globe2,
+  Boxes
+} from "lucide-react";
 
 gsap.registerPlugin(ScrollTrigger);
 
-// ── WordSplit OUTSIDE component (fix: no recreation on re-render) ──
-function WordSplit({ text, cls = "" }: { text: string; cls?: string }) {
-  return (
-    <>
-      {text.split(" ").map((w, i) => (
-        <span key={i} className="inline-block overflow-hidden" style={{ perspective: "800px" }}>
-          <span className={`hero-word inline-block will-change-transform ${cls}`}>{w}&nbsp;</span>
-        </span>
-      ))}
-    </>
-  );
-}
+// ── Dynamic 3D WebGL Canvas Import (No SSR hydration issues) ───
+const HeroCanvas = dynamic(() => import("@/components/HeroCanvas"), {
+  ssr: false,
+  loading: () => <div className="absolute inset-0 pointer-events-none" />,
+});
 
-// ── Mock task-board visual for showcase ───────────────────────────
-function TaskBoardMock({ color, items }: { color: string; items: string[] }) {
+// ── Interactive 3D Perspective Tilt Card Component ────────────
+function TiltCard({ 
+  children, 
+  className = "", 
+  style = {} 
+}: { 
+  children: React.ReactNode; 
+  className?: string; 
+  style?: React.CSSProperties 
+}) {
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [rotate, setRotate] = useState({ x: 0, y: 0 });
+  const [glare, setGlare] = useState({ x: 50, y: 50, opacity: 0 });
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!cardRef.current) return;
+    const rect = cardRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+
+    const rotX = ((y - centerY) / centerY) * -6;
+    const rotY = ((x - centerX) / centerX) * 6;
+
+    setRotate({ x: rotX, y: rotY });
+    setGlare({
+      x: (x / rect.width) * 100,
+      y: (y / rect.height) * 100,
+      opacity: 0.16,
+    });
+  };
+
+  const handleMouseLeave = () => {
+    setRotate({ x: 0, y: 0 });
+    setGlare(prev => ({ ...prev, opacity: 0 }));
+  };
+
   return (
-    <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-xl shadow-slate-100"
-      style={{ boxShadow: `0 24px 64px ${color}10` }}>
-      {/* Top bar */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex gap-1.5">
-          {["#f87171","#fbbf24","#4ade80"].map(c => (
-            <div key={c} className="w-2.5 h-2.5 rounded-full" style={{ background: c }} />
-          ))}
-        </div>
-        <div className="w-24 h-2 rounded-full bg-slate-100" />
-        <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: color }} />
-      </div>
-      {/* Rows */}
-      <div className="space-y-2.5">
-        {items.map((item, i) => (
-          <div key={item} className="flex items-center gap-3 p-3 rounded-xl border border-slate-50 bg-slate-50 group hover:border-opacity-60 transition-all"
-            style={{ borderLeftColor: color, borderLeftWidth: 2 }}>
-            <div className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 text-white text-[10px] font-bold"
-              style={{ background: color + (i === 0 ? "ff" : i === 1 ? "cc" : "88") }}>
-              {i === 0 ? "✓" : i + 1}
-            </div>
-            <span className="text-slate-700 text-xs font-medium flex-1">{item}</span>
-            <div className="w-10 h-1.5 rounded-full" style={{ background: `${color}${40 + i * 25}` }} />
-          </div>
-        ))}
-      </div>
-      {/* Progress bar */}
-      <div className="mt-4 flex items-center gap-3">
-        <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-          <div className="h-full rounded-full" style={{ width: "72%", background: `linear-gradient(90deg, ${color}, ${color}88)` }} />
-        </div>
-        <span className="text-[11px] text-slate-400 font-medium">72%</span>
-      </div>
+    <div
+      ref={cardRef}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      style={{
+        transform: `perspective(1000px) rotateX(${rotate.x}deg) rotateY(${rotate.y}deg)`,
+        transition: "transform 0.18s ease-out",
+        ...style,
+      }}
+      className={`relative overflow-hidden group/tilt ${className}`}
+    >
+      {/* 3D Specular Sheen Glare */}
+      <div
+        className="pointer-events-none absolute inset-0 z-30 transition-opacity duration-300"
+        style={{
+          background: `radial-gradient(circle 380px at ${glare.x}% ${glare.y}%, rgba(255,255,255,${glare.opacity}), transparent 80%)`,
+        }}
+      />
+      {children}
     </div>
   );
 }
 
 export default function HomePage() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const hTweenRef = useRef<gsap.core.Tween | null>(null);
 
   useEffect(() => {
-    // ── Lenis: ONLY via gsap.ticker ───────────────
-    const lenis = new Lenis({ lerp: 0.09, smoothWheel: true });
+    // ── Smooth Scroll (Lenis) ─────────────────────────────────────
+    const lenis = new Lenis({ lerp: 0.08, smoothWheel: true });
     const lenisTicker = (time: number) => {
       lenis.raf(time * 1000);
     };
@@ -76,156 +110,92 @@ export default function HomePage() {
     gsap.ticker.lagSmoothing(500, 33);
     lenis.on("scroll", ScrollTrigger.update);
 
-    // ── Auto-hide Navbar ──────────────────────────────────────────
-    const showAnim = gsap.fromTo(".main-nav", 
-      { yPercent: 0 }, 
-      { yPercent: -100, paused: true, duration: 0.3, ease: "power2.out" }
+    // ── Floating Navbar Auto-Hide on Scroll Down ──────────────────
+    const showAnim = gsap.fromTo(
+      ".main-nav",
+      { y: 0 },
+      { y: -100, paused: true, duration: 0.3, ease: "power2.out" }
     );
     ScrollTrigger.create({
       start: "top top",
       end: "max",
       onUpdate: (self) => {
-        if (self.direction === 1 && self.progress > 0.01) {
+        if (self.direction === 1 && self.progress > 0.02) {
           showAnim.play();
         } else {
           showAnim.reverse();
         }
-      }
+      },
     });
 
-    // ── Hero Cinematic Reveal ───────────────────────────────────────
-    gsap.fromTo(".hero-pill",
-      { opacity: 0, y: 16 },
-      { opacity: 1, y: 0, duration: 1, ease: "power3.out", delay: 0.1 }
+    // ── Hero Animations ───────────────────────────────────────────
+    gsap.fromTo(
+      ".hero-badge",
+      { opacity: 0, y: 20 },
+      { opacity: 1, y: 0, duration: 0.8, ease: "power3.out", delay: 0.1 }
     );
-    gsap.fromTo(".hero-line",
-      { y: 100, rotateX: -15 },
-      { y: 0, rotateX: 0, stagger: 0.12, duration: 1.2, ease: "expo.out", delay: 0.2 }
-    );
-    gsap.fromTo(".hero-sub",
+    gsap.fromTo(
+      ".hero-title",
       { opacity: 0, y: 30 },
-      { opacity: 1, y: 0, duration: 1, ease: "expo.out", delay: 0.7 }
+      { opacity: 1, y: 0, duration: 1, ease: "power3.out", delay: 0.25 }
     );
-    gsap.fromTo(".hero-bottom",
-      { opacity: 0, y: 24 },
-      { opacity: 1, y: 0, stagger: 0.1, duration: 1, ease: "expo.out", delay: 0.9 }
+    gsap.fromTo(
+      ".hero-desc",
+      { opacity: 0, y: 20 },
+      { opacity: 1, y: 0, duration: 0.9, ease: "power3.out", delay: 0.4 }
+    );
+    gsap.fromTo(
+      ".hero-actions",
+      { opacity: 0, y: 20 },
+      { opacity: 1, y: 0, duration: 0.9, ease: "power3.out", delay: 0.55 }
+    );
+    gsap.fromTo(
+      ".hero-preview",
+      { opacity: 0, y: 50, scale: 0.96 },
+      { opacity: 1, y: 0, scale: 1, duration: 1.2, ease: "power4.out", delay: 0.7 }
     );
 
-    // Hero right panel float in
-    gsap.fromTo(".hero-panel",
-      { opacity: 0, x: 60, scale: 0.95 },
-      { opacity: 1, x: 0, scale: 1, duration: 1.1, ease: "power3.out", delay: 0.6 }
-    );
-
-
-
-    // ── Marquee ───────────────────────────────────────────────────
-    gsap.to(".marquee-track", { xPercent: -50, repeat: -1, duration: 30, ease: "none" });
-
-    // ── Scroll progress bar ───────────────────────────────────────
-    gsap.to(".scroll-bar", {
-      scaleX: 1, ease: "none",
-      scrollTrigger: { trigger: document.documentElement, start: "top top", end: "bottom bottom", scrub: 0.1 },
+    // ── Scroll Reveal Elements ────────────────────────────────────
+    gsap.utils.toArray<HTMLElement>(".reveal-on-scroll").forEach((el) => {
+      gsap.fromTo(
+        el,
+        { opacity: 0, y: 35 },
+        {
+          opacity: 1,
+          y: 0,
+          duration: 0.8,
+          ease: "power3.out",
+          scrollTrigger: {
+            trigger: el,
+            start: "top 85%",
+            toggleActions: "play none none none",
+          },
+        }
+      );
     });
 
-    // ── Parallax blobs ────────────────────────────────────────────
-    gsap.to(".blob-slow", {
-      y: -100, ease: "none",
-      scrollTrigger: { trigger: ".hero-section", start: "top top", end: "bottom top", scrub: true },
-    });
-
-    // ── Showcase items ────────────────────────────────────────────
-    gsap.utils.toArray<HTMLElement>(".showcase-item").forEach((item) => {
-      const label = item.querySelector(".s-label");
-      const heading = item.querySelector(".s-heading");
-      const bar = item.querySelector(".s-bar");
-      const desc = item.querySelector(".s-desc");
-      const panel = item.querySelector(".s-panel");
-
-      gsap.timeline({
-        scrollTrigger: { trigger: item, start: "top 75%", toggleActions: "play none none none" },
-      })
-        .fromTo(label, { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.4 })
-        .fromTo(heading, { opacity: 0, y: 28 }, { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" }, "-=0.2")
-        .fromTo(bar, { scaleX: 0 }, { scaleX: 1, duration: 0.5, ease: "power2.out" }, "-=0.4")
-        .fromTo(desc, { opacity: 0 }, { opacity: 1, duration: 0.5 }, "-=0.3")
-        .fromTo(panel, { opacity: 0, x: 40, scale: 0.96 }, { opacity: 1, x: 0, scale: 1, duration: 0.7, ease: "power3.out" }, "-=0.5");
-    });
-
-    // ── Horizontal scroll ─────────────────────────────────────────
-    const hTrack = document.querySelector<HTMLElement>(".h-track");
-    if (hTrack) {
-      const totalW = hTrack.scrollWidth - window.innerWidth;
-      hTweenRef.current = gsap.to(hTrack, {
-        x: -totalW, ease: "none",
-        scrollTrigger: {
-          trigger: ".h-container",
-          start: "top top",
-          end: () => `+=${totalW + 160}`,
-          scrub: 0.6,
-          pin: true,
-          anticipatePin: 1,
-        },
-      });
-
-      // Cards fade-in as they scroll into view
-      gsap.utils.toArray<HTMLElement>(".h-card").forEach((card, i) => {
-        gsap.fromTo(card,
-          { opacity: 0, y: 32 },
-          {
-            opacity: 1, y: 0, duration: 0.7, ease: "power3.out", delay: i * 0.05,
-            scrollTrigger: {
-              trigger: ".h-container",
-              start: "top 20%",
-              toggleActions: "play none none none",
-            },
-          }
-        );
-      });
-    }
-
-    // ── Stats count-up ────────────────────────────────────────────
-    gsap.utils.toArray<HTMLElement>(".count-num").forEach((el) => {
+    // ── Stats Counting Animation ──────────────────────────────────
+    gsap.utils.toArray<HTMLElement>(".count-stat").forEach((el) => {
       const target = parseFloat(el.dataset.target || "0");
       const isFloat = (el.dataset.target || "").includes(".");
       ScrollTrigger.create({
-        trigger: el, start: "top 82%",
+        trigger: el,
+        start: "top 85%",
         onEnter: () => {
-          const counter = { v: 0 };
+          const counter = { val: 0 };
           gsap.to(counter, {
-            v: target, duration: 2.2, ease: "power2.out",
+            val: target,
+            duration: 2,
+            ease: "power2.out",
             onUpdate: () => {
               el.textContent = isFloat
-                ? counter.v.toFixed(1)
-                : Math.floor(counter.v).toLocaleString();
+                ? counter.val.toFixed(1)
+                : Math.floor(counter.val).toLocaleString();
             },
           });
         },
       });
     });
-
-    // ── Reveal-up stagger ─────────────────────────────────────────
-    gsap.utils.toArray<HTMLElement>(".reveal-up").forEach((el) => {
-      gsap.fromTo(el,
-        { opacity: 0, y: 44 },
-        { opacity: 1, y: 0, duration: 0.8, ease: "power3.out",
-          scrollTrigger: { trigger: el, start: "top 87%", toggleActions: "play none none none" } }
-      );
-    });
-
-    // ── Clip-path quote reveal ────────────────────────────────────
-    gsap.fromTo(".clip-reveal",
-      { clipPath: "inset(0 100% 0 0)" },
-      { clipPath: "inset(0 0% 0 0)", duration: 1.3, ease: "power3.inOut",
-        scrollTrigger: { trigger: ".clip-reveal", start: "top 78%" } }
-    );
-
-    // ── CTA zoom ──────────────────────────────────────────────────
-    gsap.fromTo(".cta-box",
-      { scale: 0.92, opacity: 0, y: 30 },
-      { scale: 1, opacity: 1, y: 0, duration: 1, ease: "power3.out",
-        scrollTrigger: { trigger: ".cta-box", start: "top 82%" } }
-    );
 
     return () => {
       lenis.destroy();
@@ -235,518 +205,625 @@ export default function HomePage() {
   }, []);
 
   return (
-    <div className="bg-[#f8f7f3] text-slate-900 overflow-x-hidden selection:bg-indigo-100 selection:text-indigo-700">
-      <style>{`
-        .font-syne { font-family: var(--font-syne); }
-        .grad {
-          background: linear-gradient(135deg,#4f46e5 0%,#7c3aed 55%,#0891b2 100%);
-          -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
-        }
-        .pill {
-          display:inline-flex; align-items:center; gap:6px; padding:5px 14px;
-          border-radius:999px; background:rgba(79,70,229,0.07); color:#4f46e5;
-          font-size:11px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase;
-          border:1px solid rgba(79,70,229,0.15);
-        }
-        .scroll-bar { transform-origin:left; transform:scaleX(0); }
-        .hero-word { opacity:0; }
-        .hero-sub, .hero-bottom { opacity:0; }
-        .hero-panel { opacity:0; }
-        .showcase-item .s-label,
-        .showcase-item .s-heading,
-        .showcase-item .s-desc { opacity:0; }
-        .showcase-item .s-bar { transform:scaleX(0); transform-origin:left; }
-        .showcase-item .s-panel { opacity:0; }
-        .cta-box { opacity:0; }
-        @media (prefers-reduced-motion:reduce) {
-          *, *::before, *::after { animation-duration:0.01ms !important; transition-duration:0.01ms !important; }
-        }
-        @keyframes float-y { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
-        @keyframes scroll-drop {
-          0%{opacity:0;transform:translateY(-100%)} 50%{opacity:1} 100%{opacity:0;transform:translateY(100%)}
-        }
-        @keyframes spin-slow {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-        @keyframes spin-slow-reverse {
-          from { transform: rotate(360deg); }
-          to { transform: rotate(0deg); }
-        }
-        @keyframes gradient-x {
-          0% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
-          100% { background-position: 0% 50%; }
-        }
-        .animate-gradient-x {
-          background-size: 200% auto;
-          animation: gradient-x 4s linear infinite;
-        }
-      `}</style>
-
-      {/* ── Scroll progress bar ───────────────────────────────── */}
-      <div className="fixed top-0 left-0 right-0 z-[300] h-[3px]">
-        <div className="scroll-bar h-full"
-          style={{ background: "linear-gradient(90deg,#4f46e5,#7c3aed,#0891b2)" }} />
+    <div className="bg-[#07080b] text-slate-100 min-h-screen selection:bg-indigo-500/30 selection:text-indigo-200 overflow-x-hidden font-sans">
+      
+      {/* ── Ambient Background Glows & Grid ────────────────────────── */}
+      <div className="fixed inset-0 pointer-events-none z-0">
+        {/* Radial Aurora Spotlights */}
+        <div className="absolute top-[-10%] left-[20%] w-[700px] h-[700px] bg-gradient-to-br from-indigo-600/15 via-violet-600/10 to-transparent rounded-full blur-[140px]" />
+        <div className="absolute top-[35%] right-[-5%] w-[650px] h-[650px] bg-gradient-to-bl from-cyan-500/12 via-blue-600/8 to-transparent rounded-full blur-[160px]" />
+        <div className="absolute bottom-[10%] left-[-10%] w-[600px] h-[600px] bg-gradient-to-tr from-purple-600/10 via-indigo-600/10 to-transparent rounded-full blur-[140px]" />
+        
+        {/* Cyber Grid Lines */}
+        <div 
+          className="absolute inset-0 opacity-[0.16]"
+          style={{
+            backgroundImage: `radial-gradient(circle at 1px 1px, rgba(255,255,255,0.15) 1px, transparent 0)`,
+            backgroundSize: "44px 44px",
+          }}
+        />
+        {/* Subtle Vignette */}
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#07080b]/40 to-[#07080b]" />
       </div>
 
-      {/* ── NAVBAR ───────────────────────────────────────────── */}
-      <nav className="main-nav fixed top-[3px] left-0 right-0 z-[200] border-b border-slate-200/80 backdrop-blur-2xl"
-        style={{ background: "rgba(248,247,243,0.88)", willChange: "transform" }}>
-        <div className="max-w-7xl mx-auto px-6 h-[62px] flex items-center justify-between">
+      {/* ── Top Announcement Banner ───────────────────────────────── */}
+      <div className="relative z-50 bg-gradient-to-r from-indigo-950/80 via-purple-950/80 to-slate-950/80 border-b border-indigo-500/20 py-2 px-4 text-center text-xs font-medium text-slate-300 flex items-center justify-center gap-2 backdrop-blur-md">
+        <span className="flex h-2 w-2 relative">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+          <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500"></span>
+        </span>
+        <span className="text-white font-semibold">ProjectCamp v2.0 Live:</span>
+        <span className="hidden sm:inline text-slate-300">Predictive AI Risk Modeling & Redis Job Queues are now active.</span>
+        <Link href="/auth" className="text-cyan-400 hover:text-cyan-300 font-semibold underline underline-offset-2 ml-1">
+          Explore Workspace →
+        </Link>
+      </div>
+
+      {/* ── FLOATING NAVBAR ───────────────────────────────────────── */}
+      <nav className="main-nav fixed top-11 left-0 right-0 z-40 px-4 sm:px-8">
+        <div className="max-w-7xl mx-auto h-[64px] rounded-2xl bg-[#0c0d12]/85 border border-white/[0.08] backdrop-blur-xl px-5 sm:px-6 flex items-center justify-between shadow-[0_8px_32px_0_rgba(0,0,0,0.5)]">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2.5 hover:opacity-90 transition-opacity">
-            <div className="w-8 h-8 rounded-xl flex items-center justify-center shadow-sm"
-              style={{ background: "linear-gradient(135deg,#4f46e5,#7c3aed)" }}>
-              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
+          <Link href="/" className="flex items-center gap-3 group">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 via-purple-600 to-cyan-500 p-0.5 shadow-[0_0_20px_-3px_rgba(99,102,241,0.6)] group-hover:shadow-[0_0_25px_-1px_rgba(99,102,241,0.8)] transition-all">
+              <div className="w-full h-full bg-[#0a0b0e] rounded-[10px] flex items-center justify-center">
+                <Zap className="w-4 h-4 text-indigo-400 fill-indigo-400/30" />
+              </div>
             </div>
-            <span className="font-syne font-bold text-[15px] text-slate-900 tracking-tight">Project Camp</span>
+            <div className="flex flex-col">
+              <span className="font-syne font-extrabold text-[16px] tracking-tight text-white flex items-center gap-1.5">
+                ProjectCamp
+                <span className="text-[10px] uppercase font-mono px-1.5 py-0.2 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-bold">3D PRO</span>
+              </span>
+            </div>
           </Link>
 
-          {/* Nav links */}
-          <div className="hidden md:flex items-center gap-7">
-            {["Features","How it works","Pricing","Blog"].map((l) => (
-              <a key={l} href="#"
-                className="text-slate-500 hover:text-slate-900 text-sm font-medium transition-colors duration-200 relative group">
-                {l}
-                <span className="absolute -bottom-0.5 left-0 w-0 h-[1.5px] bg-indigo-500 group-hover:w-full transition-all duration-300 rounded-full" />
-              </a>
-            ))}
+          {/* Center Links */}
+          <div className="hidden md:flex items-center gap-8">
+            <a href="#features" className="text-slate-400 hover:text-white text-sm font-medium transition-colors">Features</a>
+            <a href="#architecture" className="text-slate-400 hover:text-white text-sm font-medium transition-colors">Architecture</a>
+            <a href="#ai-intelligence" className="text-slate-400 hover:text-white text-sm font-medium transition-colors flex items-center gap-1.5">
+              <span>AI Engine</span>
+              <span className="px-1.5 py-0.5 text-[9px] font-bold rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">GEMINI</span>
+            </a>
+            <a href="#realtime" className="text-slate-400 hover:text-white text-sm font-medium transition-colors">Real-Time</a>
           </div>
 
-          {/* Actions */}
-          <div className="flex items-center gap-2">
-            <Link href="/auth"
-              className="hidden sm:block text-slate-500 hover:text-slate-900 text-sm font-medium px-4 py-2 rounded-lg hover:bg-slate-100 transition-all duration-200">
-              Log in
-            </Link>
-            <Link href="/auth"
-              className="text-sm font-bold text-white px-5 py-2.5 rounded-xl transition-all duration-200 hover:-translate-y-px hover:shadow-lg"
-              style={{ background: "linear-gradient(135deg,#4f46e5,#6d28d9)", boxShadow: "0 4px 16px rgba(79,70,229,0.35)" }}>
-              Get started →
-            </Link>
-            {/* Mobile menu toggle */}
-            <button
-              className="md:hidden ml-2 text-slate-500 hover:text-slate-900 focus:outline-none"
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          {/* Action CTAs */}
+          <div className="flex items-center gap-3">
+            <Link 
+              href="/auth" 
+              className="hidden sm:inline-flex text-slate-300 hover:text-white text-sm font-medium px-4 py-2 rounded-xl hover:bg-white/[0.05] transition-all"
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                {isMobileMenuOpen ? (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                ) : (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                )}
-              </svg>
+              Sign In
+            </Link>
+            <Link 
+              href="/auth" 
+              className="relative group overflow-hidden rounded-xl p-px font-semibold text-sm shadow-[0_0_25px_-5px_rgba(99,102,241,0.5)]"
+            >
+              <span className="absolute inset-0 bg-gradient-to-r from-indigo-500 via-purple-500 to-cyan-500 transition-all duration-300 group-hover:opacity-90" />
+              <span className="relative flex items-center gap-2 px-4 py-2 rounded-[11px] bg-[#0c0d12] text-white transition-all duration-200 group-hover:bg-opacity-80">
+                Launch App
+                <ArrowRight className="w-3.5 h-3.5 text-indigo-400 group-hover:translate-x-0.5 transition-transform" />
+              </span>
+            </Link>
+
+            {/* Mobile Toggle */}
+            <button 
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="md:hidden text-slate-400 hover:text-white p-2"
+              aria-label="Toggle menu"
+            >
+              <div className="w-5 h-4 flex flex-col justify-between">
+                <span className="w-full h-0.5 bg-current rounded" />
+                <span className="w-full h-0.5 bg-current rounded" />
+                <span className="w-full h-0.5 bg-current rounded" />
+              </div>
             </button>
           </div>
         </div>
 
-        {/* Mobile menu dropdown */}
+        {/* Mobile Dropdown */}
         {isMobileMenuOpen && (
-          <div className="md:hidden border-t border-slate-200/50 bg-white">
-            <div className="flex flex-col px-6 py-4 space-y-4">
-              {["Features", "How it works", "Pricing", "Blog"].map((l) => (
-                <a key={l} href="#"
-                  className="text-slate-600 font-medium hover:text-indigo-600 transition-colors"
-                  onClick={() => setIsMobileMenuOpen(false)}>
-                  {l}
-                </a>
-              ))}
-              <div className="pt-4 border-t border-slate-100 flex flex-col gap-3">
-                <Link href="/auth" className="text-center text-slate-600 font-medium py-2">
-                  Log in
-                </Link>
-                <Link href="/auth" className="text-center text-white font-bold py-2.5 rounded-xl"
-                  style={{ background: "linear-gradient(135deg,#4f46e5,#6d28d9)" }}>
-                  Get started
-                </Link>
-              </div>
-            </div>
+          <div className="md:hidden mt-2 p-5 rounded-2xl bg-[#0c0d12] border border-white/[0.1] shadow-2xl space-y-4">
+            <a href="#features" onClick={() => setIsMobileMenuOpen(false)} className="block text-slate-300 text-sm py-1">Features</a>
+            <a href="#architecture" onClick={() => setIsMobileMenuOpen(false)} className="block text-slate-300 text-sm py-1">Architecture</a>
+            <a href="#ai-intelligence" onClick={() => setIsMobileMenuOpen(false)} className="block text-slate-300 text-sm py-1">AI Engine</a>
+            <Link href="/auth" className="block text-center w-full py-2.5 rounded-xl bg-indigo-600 text-white font-semibold text-sm">
+              Get Started
+            </Link>
           </div>
         )}
       </nav>
 
-      {/* ═══════════════════════════ HERO ══════════════════════════ */}
-      <section
-        className="hero-section relative min-h-screen flex items-center pt-[62px] overflow-hidden"
-      >
-        {/* Background blobs */}
-        <div className="blob-slow absolute top-16 right-[6%] w-[520px] h-[520px] rounded-full pointer-events-none"
-          style={{ background: "radial-gradient(circle at 40% 40%, rgba(79,70,229,0.09), transparent 65%)" }} />
-        <div className="blob-slow absolute bottom-0 left-[10%] w-[360px] h-[360px] rounded-full pointer-events-none"
-          style={{ background: "radial-gradient(circle, rgba(8,145,178,0.06), transparent 70%)" }} />
+      {/* ═══════════════════════════ HERO SECTION WITH LIVE 3D CANVAS ═══════════════════════════ */}
+      <section className="relative z-10 pt-40 pb-20 px-4 sm:px-6 max-w-7xl mx-auto flex flex-col items-center text-center">
+        
+        {/* ── 3D Interactive Three.js Cyber Globe / Orbital Canvas ── */}
+        <div className="absolute top-12 left-1/2 -translate-x-1/2 w-full max-w-5xl h-[650px] z-0 overflow-hidden pointer-events-none opacity-80 mix-blend-screen">
+          <HeroCanvas />
+        </div>
 
-        {/* Dot grid */}
-        <div className="absolute inset-0 pointer-events-none opacity-[0.35]"
-          style={{ backgroundImage: "radial-gradient(circle, #c7d2fe 1px, transparent 1px)", backgroundSize: "32px 32px" }} />
+        {/* ── 3D Floating Holographic Badges (Levitation with Depth) ── */}
+        <div className="hidden xl:flex absolute top-44 left-4 z-20 items-center gap-3 p-3.5 rounded-2xl bg-[#0c0e18]/85 border border-indigo-500/30 backdrop-blur-xl shadow-[0_20px_45px_-10px_rgba(99,102,241,0.35)] animate-[bounce_5s_ease-in-out_infinite]">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-cyan-500 flex items-center justify-center text-white shadow-md">
+            <Radio className="w-4 h-4 text-white" />
+          </div>
+          <div className="text-left">
+            <span className="text-[10px] font-mono text-cyan-400 font-bold block">WEBSOCKET ENGINE</span>
+            <span className="text-xs font-semibold text-white">&lt;15ms Room Sync</span>
+          </div>
+        </div>
 
-        <div className="relative z-10 max-w-7xl mx-auto px-6 w-full py-20">
-          <div className="grid lg:grid-cols-2 gap-16 items-center">
+        <div className="hidden xl:flex absolute top-52 right-4 z-20 items-center gap-3 p-3.5 rounded-2xl bg-[#0c0e18]/85 border border-purple-500/30 backdrop-blur-xl shadow-[0_20px_45px_-10px_rgba(168,85,247,0.35)] animate-[bounce_6s_ease-in-out_infinite_1.2s]">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white shadow-md">
+            <Bot className="w-4 h-4 text-white" />
+          </div>
+          <div className="text-left">
+            <span className="text-[10px] font-mono text-purple-400 font-bold block">GEMINI 1.5 FLASH</span>
+            <span className="text-xs font-semibold text-white">Automated Risk Radar</span>
+          </div>
+        </div>
 
-            {/* Left — text */}
-            <div className="relative z-10 max-w-xl">
-              {/* Premium Top Pill */}
-              <div className="hero-pill inline-flex items-center gap-2.5 px-3.5 py-2 rounded-full bg-white/60 backdrop-blur-md border border-slate-200/50 shadow-sm mb-8 opacity-0">
-                 <span className="flex items-center justify-center w-6 h-6 rounded-full text-indigo-600 text-xs shadow-inner"
-                       style={{ background: "linear-gradient(135deg, #e0e7ff, #ede9fe)" }}>✨</span>
-                 <span className="text-[11px] font-extrabold text-slate-800 tracking-widest uppercase">Project Camp v2.0</span>
+        {/* Top Floating Badge */}
+        <div className="hero-badge relative z-10 inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.1] backdrop-blur-xl shadow-inner mb-8">
+          <Sparkles className="w-3.5 h-3.5 text-indigo-400 animate-pulse" />
+          <span className="text-xs font-semibold text-slate-200 tracking-wide">
+            Next-Gen Project Intelligence & Collaboration Platform
+          </span>
+          <span className="w-1 h-1 rounded-full bg-slate-600" />
+          <span className="text-[11px] font-mono text-cyan-400 font-bold">3D Visual Engine</span>
+        </div>
+
+        {/* Main Headline */}
+        <h1 className="hero-title relative z-10 font-syne font-extrabold text-4xl sm:text-6xl lg:text-[76px] leading-[1.06] tracking-tight max-w-5xl mb-7">
+          Manage projects at the{" "}
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 via-violet-400 to-cyan-300 drop-shadow-[0_0_35px_rgba(99,102,241,0.4)]">
+            speed of thought.
+          </span>
+        </h1>
+
+        {/* Subtitle */}
+        <p className="hero-desc relative z-10 text-slate-400 text-base sm:text-xl max-w-2xl font-normal leading-relaxed mb-10">
+          A high-concurrency, real-time workspace designed for ambitious teams. 
+          Powered by Google Gemini for automated risk forecasting, live WebSocket task boards, and distributed job queues.
+        </p>
+
+        {/* Action Buttons */}
+        <div className="hero-actions relative z-10 flex flex-wrap items-center justify-center gap-4 mb-16">
+          <Link
+            href="/auth"
+            className="group relative inline-flex items-center gap-2.5 px-8 py-4 rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-cyan-600 text-white font-bold text-base shadow-[0_0_40px_-5px_rgba(99,102,241,0.6)] hover:shadow-[0_0_50px_0_rgba(99,102,241,0.8)] hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
+          >
+            <span>Start Free Workspace</span>
+            <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+          </Link>
+          
+          <a
+            href="#live-preview"
+            className="inline-flex items-center gap-2.5 px-7 py-4 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.1] text-slate-200 font-semibold text-base backdrop-blur-xl transition-all duration-200 hover:border-white/20"
+          >
+            <Boxes className="w-4 h-4 text-indigo-400" />
+            <span>Interactive 3D Hub</span>
+          </a>
+        </div>
+
+        {/* Social Proof Badges */}
+        <div className="relative z-10 flex flex-wrap items-center justify-center gap-6 text-xs text-slate-400 font-medium mb-16">
+          <span className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+            Zero Setup Required
+          </span>
+          <span className="flex items-center gap-2">
+            <Radio className="w-4 h-4 text-cyan-400" />
+            Bi-directional WebSockets
+          </span>
+          <span className="flex items-center gap-2">
+            <Bot className="w-4 h-4 text-violet-400" />
+            Google Gemini 1.5 Flash
+          </span>
+          <span className="flex items-center gap-2">
+            <ShieldCheck className="w-4 h-4 text-amber-400" />
+            Enterprise RBAC
+          </span>
+        </div>
+
+        {/* ════════════════════ 3D INTERACTIVE TILT COMMAND HUB ════════════════════ */}
+        <div id="live-preview" className="hero-preview relative z-10 w-full max-w-6xl mx-auto">
+          <TiltCard className="rounded-3xl bg-[#0d0e15]/90 border border-white/[0.12] p-3 sm:p-5 shadow-[0_25px_90px_-15px_rgba(0,0,0,0.85)] backdrop-blur-2xl">
+            
+            {/* Ambient Top Rim Light */}
+            <div className="absolute top-0 left-1/4 right-1/4 h-px bg-gradient-to-r from-transparent via-indigo-500/70 to-transparent" />
+            
+            {/* Window Chrome Header */}
+            <div className="flex items-center justify-between pb-4 border-b border-white/[0.08] px-3">
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full bg-rose-500/80 border border-rose-500/20" />
+                <span className="w-3 h-3 rounded-full bg-amber-500/80 border border-amber-500/20" />
+                <span className="w-3 h-3 rounded-full bg-emerald-500/80 border border-emerald-500/20" />
+                <span className="ml-3 text-xs font-mono text-slate-400 hidden sm:inline">projectcamp.app / workspace / 3d-core</span>
               </div>
 
-              {/* Cinematic Line-by-Line Reveal */}
-              <h1 className="font-syne font-extrabold text-[3.8rem] lg:text-[4.6rem] leading-[1.05] tracking-tight mb-7 text-slate-900" style={{ perspective: "1000px" }}>
-                <div className="overflow-hidden py-1"><div className="hero-line will-change-transform">Manage your</div></div>
-                <div className="overflow-hidden py-1"><div className="hero-line will-change-transform">projects at the</div></div>
-                <div className="overflow-hidden py-1">
-                  <div className="hero-line flex flex-wrap will-change-transform">
-                    speed of <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 via-purple-500 to-cyan-500 animate-gradient-x ml-2">thought.</span>
+              {/* Quick Command Pallette Pill */}
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-xs text-slate-400">
+                <Terminal className="w-3.5 h-3.5 text-indigo-400" />
+                <span>Sprint: Active</span>
+                <kbd className="px-1.5 py-0.5 rounded bg-white/[0.08] text-[10px] text-slate-300 font-mono">⌘K</kbd>
+              </div>
+
+              {/* Live Socket Status */}
+              <div className="flex items-center gap-2">
+                <span className="flex h-2 w-2 relative">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                <span className="text-xs font-medium text-emerald-400 hidden sm:inline">WS Sync: 12ms</span>
+              </div>
+            </div>
+
+            {/* Interactive Workspace Body */}
+            <div className="pt-5 text-left grid grid-cols-1 lg:grid-cols-4 gap-5">
+              
+              {/* Left Column: Project Stats & AI Risk Radar */}
+              <div className="space-y-4">
+                <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/[0.06] backdrop-blur-md">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs font-mono uppercase tracking-wider text-slate-400 font-bold">Health Score</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Optimal</span>
+                  </div>
+                  <div className="flex items-baseline gap-2 mb-2">
+                    <span className="font-syne text-4xl font-extrabold text-white">96</span>
+                    <span className="text-slate-500 text-sm">/ 100</span>
+                  </div>
+                  <div className="w-full bg-white/[0.05] h-1.5 rounded-full overflow-hidden mb-3">
+                    <div className="bg-gradient-to-r from-emerald-500 to-cyan-500 h-full w-[96%]" />
+                  </div>
+                  <p className="text-[11px] text-slate-400 leading-tight">
+                    Gemini analyzed 24 sprint tasks: 0 bottlenecks, velocity up 18%.
+                  </p>
+                </div>
+
+                {/* AI Quick Suggestion Card */}
+                <div className="p-4 rounded-2xl bg-gradient-to-br from-indigo-950/40 via-purple-950/20 to-transparent border border-indigo-500/20">
+                  <div className="flex items-center gap-2 mb-2 text-indigo-400 text-xs font-bold">
+                    <Bot className="w-4 h-4" />
+                    <span>AI Workload Recommendation</span>
+                  </div>
+                  <p className="text-xs text-slate-300 mb-3 leading-relaxed">
+                    "Reassign Task #41 to @sarah to balance workload before Sprint Freeze."
+                  </p>
+                  <button className="w-full py-1.5 px-3 rounded-lg bg-indigo-600/30 hover:bg-indigo-600/50 border border-indigo-500/40 text-xs font-semibold text-indigo-200 transition-colors">
+                    Apply Suggestion →
+                  </button>
+                </div>
+              </div>
+
+              {/* Right 3 Columns: Live Kanban Board */}
+              <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-4">
+                
+                {/* Column 1: Backlog */}
+                <div className="p-3 rounded-2xl bg-white/[0.02] border border-white/[0.05]">
+                  <div className="flex items-center justify-between mb-3 px-1">
+                    <span className="text-xs font-bold text-slate-300 flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-slate-400" />
+                      Backlog
+                    </span>
+                    <span className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-white/[0.05] text-slate-400">4</span>
+                  </div>
+                  <div className="space-y-2.5">
+                    <div className="p-3 rounded-xl bg-[#11121a] border border-white/[0.06] hover:border-indigo-500/30 transition-all cursor-pointer">
+                      <span className="text-[10px] font-mono text-indigo-400 font-semibold block mb-1">PROJ-108</span>
+                      <h4 className="text-xs font-medium text-slate-200 mb-2">Configure Redis Cache for Session Auth</h4>
+                      <div className="flex items-center justify-between text-[10px] text-slate-500">
+                        <span className="px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-400">Low Priority</span>
+                        <span>Est: 2h</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </h1>
 
-              <p className="hero-sub text-slate-500 text-lg leading-[1.75] max-w-[480px] mb-9 font-light">
-                From idea to execution in seconds. AI builds your roadmap, assigns tasks, and predicts blockers — before they happen.
-              </p>
+                {/* Column 2: In Progress */}
+                <div className="p-3 rounded-2xl bg-white/[0.02] border border-white/[0.05]">
+                  <div className="flex items-center justify-between mb-3 px-1">
+                    <span className="text-xs font-bold text-slate-300 flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
+                      In Progress
+                    </span>
+                    <span className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-white/[0.05] text-slate-400">2</span>
+                  </div>
+                  <div className="space-y-2.5">
+                    <div className="p-3 rounded-xl bg-[#12131f] border border-indigo-500/30 shadow-[0_0_20px_-5px_rgba(99,102,241,0.2)] transition-all">
+                      <span className="text-[10px] font-mono text-purple-400 font-semibold block mb-1">PROJ-94</span>
+                      <h4 className="text-xs font-medium text-white mb-2">WebSocket Room Segregation & Live Push</h4>
+                      <div className="flex items-center justify-between text-[10px]">
+                        <span className="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400">High Priority</span>
+                        <span className="text-indigo-300">Live Syncing</span>
+                      </div>
+                    </div>
 
-              {/* CTAs */}
-              <div className="hero-bottom flex flex-wrap items-center gap-3 mb-9">
-                <Link href="/auth"
-                  className="group inline-flex items-center gap-2 px-7 py-3.5 rounded-xl text-white font-bold text-[15px] transition-all duration-250 hover:-translate-y-0.5 hover:shadow-xl"
-                  style={{ background: "linear-gradient(135deg,#4f46e5,#6d28d9)", boxShadow: "0 8px 28px rgba(79,70,229,0.38)" }}>
-                  Start for free
-                  <svg className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                  </svg>
-                </Link>
-                <button className="inline-flex items-center gap-2 px-7 py-3.5 rounded-xl border-2 border-slate-200 text-slate-600 hover:border-indigo-200 hover:text-indigo-600 hover:bg-indigo-50 font-semibold text-[15px] transition-all duration-250 bg-white/70 backdrop-blur-sm">
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M8 5v14l11-7z" />
-                  </svg>
-                  Watch demo
-                </button>
-              </div>
-
-              {/* Social proof */}
-              <div className="hero-bottom flex items-center gap-4">
-                <div className="flex -space-x-2">
-                  {["#4f46e5","#0891b2","#7c3aed","#059669","#dc2626"].map((c, i) => (
-                    <div key={i} className="w-8 h-8 rounded-full border-2 border-[#f8f7f3] flex items-center justify-center text-[11px] font-bold text-white"
-                      style={{ background: c }}>{String.fromCharCode(65 + i)}</div>
-                  ))}
+                    <div className="p-3 rounded-xl bg-[#11121a] border border-white/[0.06] hover:border-white/10 transition-all">
+                      <span className="text-[10px] font-mono text-cyan-400 font-semibold block mb-1">PROJ-102</span>
+                      <h4 className="text-xs font-medium text-slate-200 mb-2">AWS S3 Presigned Attachment Storage</h4>
+                      <div className="flex items-center justify-between text-[10px] text-slate-500">
+                        <span className="px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400">Medium</span>
+                        <span>3 files</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <p className="text-slate-500 text-sm">
-                  <span className="font-semibold text-slate-800">2,400+</span> teams ship faster
-                </p>
-                <div className="flex gap-0.5 ml-1">
-                  {Array(5).fill(0).map((_, i) => (
-                    <svg key={i} className="w-3.5 h-3.5 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
-                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                    </svg>
-                  ))}
-                  <span className="text-slate-400 text-xs ml-1">4.9/5</span>
+
+                {/* Column 3: Shipped / Done */}
+                <div className="p-3 rounded-2xl bg-white/[0.02] border border-white/[0.05]">
+                  <div className="flex items-center justify-between mb-3 px-1">
+                    <span className="text-xs font-bold text-slate-300 flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                      Completed
+                    </span>
+                    <span className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-white/[0.05] text-slate-400">18</span>
+                  </div>
+                  <div className="space-y-2.5">
+                    <div className="p-3 rounded-xl bg-[#11121a] border border-emerald-500/20 opacity-80">
+                      <span className="text-[10px] font-mono text-emerald-400 font-semibold block mb-1">PROJ-88</span>
+                      <h4 className="text-xs font-medium text-slate-300 line-through mb-2">Audit Log Stream & Winston Monitoring</h4>
+                      <div className="flex items-center justify-between text-[10px] text-slate-500">
+                        <span className="text-emerald-400">✓ Verified</span>
+                        <span>Deployed</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
 
-            {/* Right — Interactive AI Particle Core (Canvas) */}
-            <div className="hero-panel hidden lg:flex relative items-center justify-center h-[550px] w-full">
-               {/* Background glow */}
-              <div className="absolute w-[400px] h-[400px] rounded-full blur-[100px] opacity-30 mix-blend-multiply pointer-events-none"
-                   style={{ background: "radial-gradient(circle, #4f46e5, #0891b2)" }} />
-              
-              <div className="relative w-full h-full flex items-center justify-center -translate-y-12">
-                 <TextSphere />
               </div>
-            </div>
 
-          </div>
+            </div>
+          </TiltCard>
         </div>
 
-        {/* Scroll hint */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2">
-          <span className="text-slate-400 text-[10px] tracking-[0.25em] uppercase">Scroll</span>
-          <div className="w-px h-10 overflow-hidden">
-            <div className="w-full h-full" style={{ background: "linear-gradient(to bottom,#4f46e5,transparent)", animation: "scroll-drop 1.6s ease-in-out infinite" }} />
+      </section>
+
+      {/* ═══════════════════════ STATS TICKER ═══════════════════════ */}
+      <section className="relative z-10 py-16 border-y border-white/[0.06] bg-[#090a0f]/60 backdrop-blur-md">
+        <div className="max-w-7xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+          <div>
+            <div className="font-syne font-extrabold text-3xl sm:text-4xl text-white mb-1">
+              &lt;<span className="count-stat" data-target="15">0</span>ms
+            </div>
+            <p className="text-xs text-slate-400 uppercase tracking-widest font-mono">Sync Latency</p>
+          </div>
+          <div>
+            <div className="font-syne font-extrabold text-3xl sm:text-4xl text-white mb-1">
+              <span className="count-stat" data-target="99.9">0</span>%
+            </div>
+            <p className="text-xs text-slate-400 uppercase tracking-widest font-mono">Uptime SLA</p>
+          </div>
+          <div>
+            <div className="font-syne font-extrabold text-3xl sm:text-4xl text-white mb-1">
+              <span className="count-stat" data-target="2400">0</span>+
+            </div>
+            <p className="text-xs text-slate-400 uppercase tracking-widest font-mono">Teams Shipping</p>
+          </div>
+          <div>
+            <div className="font-syne font-extrabold text-3xl sm:text-4xl text-white mb-1">
+              <span className="count-stat" data-target="10">0</span>x
+            </div>
+            <p className="text-xs text-slate-400 uppercase tracking-widest font-mono">Sprint Velocity</p>
           </div>
         </div>
       </section>
 
-      {/* ═══════════════════ MARQUEE ════════════════════════════════ */}
-      <div className="border-y border-slate-200 py-4 overflow-hidden bg-white">
-        <div className="marquee-track flex gap-10 whitespace-nowrap" style={{ width: "200%" }}>
-          {Array(2).fill(null).map((_, ri) => (
-            <div key={ri} className="flex items-center gap-10">
-              {["AI Task Generation","Real-time Sync","Risk Prediction","Smart Analytics","Kanban Boards","Team Collaboration","API Integrations","Roadmap Planning","Burndown Charts","Slack Alerts"].map((item) => (
-                <span key={item} className="flex items-center gap-2.5 text-slate-400 text-sm font-medium">
-                  <span className="w-1 h-1 rounded-full bg-indigo-400 flex-shrink-0" />
-                  {item}
+      {/* ═══════════════════════ 3D INTERACTIVE BENTO GRID ═══════════════════════ */}
+      <section id="features" className="relative z-10 py-32 px-4 sm:px-6 max-w-7xl mx-auto">
+        <div className="text-center max-w-3xl mx-auto mb-20 reveal-on-scroll">
+          <span className="text-xs font-mono font-bold uppercase tracking-widest text-indigo-400 mb-3 block">
+            Engineered For Scale
+          </span>
+          <h2 className="font-syne font-extrabold text-3xl sm:text-5xl text-white tracking-tight mb-5 leading-tight">
+            Everything your team needs to ship on time, every time.
+          </h2>
+          <p className="text-slate-400 text-base leading-relaxed">
+            Eliminate endless status meetings. Let automated agents, live WebSockets, and distributed queues coordinate the work.
+          </p>
+        </div>
+
+        {/* Bento Grid with 3D Tilt Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          
+          {/* Card 1: Large Featured Card (Real-Time WebSockets) */}
+          <TiltCard className="md:col-span-2 rounded-3xl bg-[#0c0d13] border border-white/[0.08] p-8 relative overflow-hidden group hover:border-indigo-500/30 transition-all duration-300">
+            <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-500/10 rounded-full blur-[80px] pointer-events-none" />
+            
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400">
+                <Radio className="w-5 h-5" />
+              </div>
+              <span className="text-xs font-mono uppercase tracking-wider text-indigo-300 font-semibold">Live Protocol</span>
+            </div>
+
+            <h3 className="font-syne font-bold text-2xl sm:text-3xl text-white mb-3">
+              Bi-directional WebSockets with Room Isolation
+            </h3>
+            <p className="text-slate-400 text-sm max-w-lg mb-8 leading-relaxed">
+              Every project operates in an isolated Socket.io channel (<code className="text-xs font-mono text-cyan-300">project_&#123;id&#125;</code>). When a teammate drops a file, moves a card, or adds a subtask, your browser updates in under 15ms without polling.
+            </p>
+
+            {/* Visual Stream Mockup */}
+            <div className="rounded-xl bg-[#08090d] border border-white/[0.06] p-4 font-mono text-xs text-slate-300 space-y-2">
+              <div className="flex items-center justify-between text-[11px] text-slate-500 border-b border-white/[0.05] pb-2">
+                <span>EVENT STREAM DISPATCHER</span>
+                <span className="text-emerald-400 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                  CONNECTED
                 </span>
-              ))}
+              </div>
+              <p className="text-indigo-300">[20:12:04] &gt; socket.join("project_649f8a")</p>
+              <p className="text-cyan-300">[20:12:05] &gt; emit("task_updated", &#123; id: 89, status: "done" &#125;)</p>
+              <p className="text-emerald-300">[20:12:06] &gt; broadcastToRoom("project_649f8a", 4 recipients synced)</p>
             </div>
-          ))}
+          </TiltCard>
+
+          {/* Card 2: AI Risk Intelligence */}
+          <TiltCard className="rounded-3xl bg-[#0c0d13] border border-white/[0.08] p-8 relative overflow-hidden group hover:border-purple-500/30 transition-all duration-300 flex flex-col justify-between">
+            <div className="absolute top-0 right-0 w-60 h-60 bg-purple-500/10 rounded-full blur-[70px] pointer-events-none" />
+            
+            <div>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2.5 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400">
+                  <Bot className="w-5 h-5" />
+                </div>
+                <span className="text-xs font-mono uppercase tracking-wider text-purple-300 font-semibold">Gemini 1.5 Flash</span>
+              </div>
+              <h3 className="font-syne font-bold text-2xl text-white mb-3">
+                Predictive Risk Radar
+              </h3>
+              <p className="text-slate-400 text-sm leading-relaxed mb-6">
+                Analyzes velocity, overdue dates, and member workload to output health scores, optimistic & pessimistic timelines, and mitigation steps.
+              </p>
+            </div>
+
+            <div className="p-4 rounded-xl bg-[#08090d] border border-white/[0.06] text-xs space-y-2">
+              <div className="flex justify-between text-slate-400">
+                <span>Predicted Delivery:</span>
+                <span className="text-white font-semibold">Dec 14, 2026</span>
+              </div>
+              <div className="flex justify-between text-slate-400">
+                <span>Confidence Factor:</span>
+                <span className="text-emerald-400 font-semibold">94.8%</span>
+              </div>
+            </div>
+          </TiltCard>
+
+          {/* Card 3: BullMQ & Redis Queues */}
+          <TiltCard className="rounded-3xl bg-[#0c0d13] border border-white/[0.08] p-8 relative overflow-hidden group hover:border-cyan-500/30 transition-all duration-300">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2.5 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400">
+                <Cpu className="w-5 h-5" />
+              </div>
+              <span className="text-xs font-mono uppercase tracking-wider text-cyan-300 font-semibold">Distributed Queues</span>
+            </div>
+            <h3 className="font-syne font-bold text-2xl text-white mb-3">
+              BullMQ + Redis Engine
+            </h3>
+            <p className="text-slate-400 text-sm leading-relaxed mb-6">
+              Heavy tasks like automated email verification and long AI summaries are offloaded to background workers, keeping your UI instantaneous.
+            </p>
+            <div className="flex items-center gap-2 text-xs font-mono text-cyan-400 bg-cyan-500/10 px-3 py-2 rounded-lg border border-cyan-500/20">
+              <Zap className="w-3.5 h-3.5" />
+              <span>Non-blocking HTTP event loop</span>
+            </div>
+          </TiltCard>
+
+          {/* Card 4: Granular RBAC */}
+          <TiltCard className="rounded-3xl bg-[#0c0d13] border border-white/[0.08] p-8 relative overflow-hidden group hover:border-amber-500/30 transition-all duration-300">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
+                <ShieldCheck className="w-5 h-5" />
+              </div>
+              <span className="text-xs font-mono uppercase tracking-wider text-amber-300 font-semibold">Security</span>
+            </div>
+            <h3 className="font-syne font-bold text-2xl text-white mb-3">
+              Role-Based Access Control
+            </h3>
+            <p className="text-slate-400 text-sm leading-relaxed mb-6">
+              Granular permission matrix (Admins vs Members) ensuring sensitive project settings and member management remain strictly governed.
+            </p>
+            <div className="flex items-center gap-2 text-xs font-mono text-amber-400 bg-amber-500/10 px-3 py-2 rounded-lg border border-amber-500/20">
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>HttpOnly JWT Cookie Verification</span>
+            </div>
+          </TiltCard>
+
+          {/* Card 5: AWS S3 Cloud Storage */}
+          <TiltCard className="rounded-3xl bg-[#0c0d13] border border-white/[0.08] p-8 relative overflow-hidden group hover:border-emerald-500/30 transition-all duration-300">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                <Globe2 className="w-5 h-5" />
+              </div>
+              <span className="text-xs font-mono uppercase tracking-wider text-emerald-300 font-semibold">Cloud Infrastructure</span>
+            </div>
+            <h3 className="font-syne font-bold text-2xl text-white mb-3">
+              AWS S3 File Pipeline
+            </h3>
+            <p className="text-slate-400 text-sm leading-relaxed mb-6">
+              Presigned multipart upload buffers for task attachments with automatic S3 garbage collection hooks on task deletion.
+            </p>
+            <div className="flex items-center gap-2 text-xs font-mono text-emerald-400 bg-emerald-500/10 px-3 py-2 rounded-lg border border-emerald-500/20">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              <span>Multi-region encrypted bucket</span>
+            </div>
+          </TiltCard>
+
         </div>
-      </div>
+      </section>
 
-      {/* ═══════════════════ SHOWCASE ═══════════════════════════════ */}
-      <section className="py-32 bg-white">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-24 reveal-up">
-            <p className="pill mb-5" style={{ margin: "0 auto 20px" }}>Why Project Camp</p>
-            <h2 className="font-syne font-extrabold text-5xl md:text-6xl text-slate-900 leading-[1.1]">
-              The platform that<br />
-              <span className="grad">thinks with you</span>
-            </h2>
-            <p className="text-slate-400 text-lg mt-4 max-w-lg mx-auto font-light">Built for modern teams who move fast and ship with confidence.</p>
+      {/* ═══════════════════════ ARCHITECTURE SECTION ═══════════════════════ */}
+      <section id="architecture" className="relative z-10 py-24 border-t border-white/[0.08] bg-[#08090d]/80">
+        <div className="max-w-6xl mx-auto px-6 text-center">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-mono mb-4">
+            <Cpu className="w-3.5 h-3.5" />
+            ENTERPRISE ARCHITECTURE
           </div>
+          <h2 className="font-syne font-extrabold text-3xl sm:text-4xl text-white mb-4">
+            Built from scratch for peak performance
+          </h2>
+          <p className="text-slate-400 text-sm sm:text-base max-w-2xl mx-auto mb-14">
+            From the Next.js 16 App Router on the edge to MongoDB 7 shard clusters and BullMQ message brokers — zero fluff, maximum efficiency.
+          </p>
 
-          <div className="space-y-32">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-left">
             {[
-              {
-                num: "01", title: "AI Task Generation", color: "#4f46e5",
-                desc: "Describe your goal in plain English. AI decomposes it into sprint-ready tasks with estimates, dependencies, and assignees — in under 3 seconds.",
-                items: ["Plan sprint from brief", "Auto-assign by skill", "Set deadlines & deps", "Track live progress"],
-                side: "right",
-              },
-              {
-                num: "02", title: "Live Risk Radar", color: "#0891b2",
-                desc: "ML models continuously scan velocity, team capacity, and scope — surfacing blockers before they become delays.",
-                items: ["Velocity drop detected", "Scope creep +18%", "Deadline at risk: API", "Auto-rebalance team"],
-                side: "left",
-              },
-              {
-                num: "03", title: "Real-time Collaboration", color: "#7c3aed",
-                desc: "Co-edit tasks, leave threaded comments, see live presence — all from one unified workspace.",
-                items: ["5 members online now", "3 edits synced live", "2 unread comments", "1 PR merge pending"],
-                side: "right",
-              },
-            ].map((f) => (
-              <div key={f.num}
-                className={`showcase-item grid grid-cols-1 lg:grid-cols-2 gap-16 items-center ${f.side === "left" ? "lg:[&>*:first-child]:order-2" : ""}`}>
-                {/* Text side */}
-                <div>
-                  <span className="s-label block text-xs font-mono font-bold tracking-[0.2em] uppercase mb-4"
-                    style={{ color: f.color }}>Feature {f.num}</span>
-                  <h3 className="s-heading font-syne font-extrabold text-4xl text-slate-900 mb-4">{f.title}</h3>
-                  <div className="s-bar h-0.5 w-14 mb-6 origin-left rounded-full" style={{ background: f.color }} />
-                  <p className="s-desc text-slate-500 text-lg leading-relaxed font-light max-w-[400px]">{f.desc}</p>
-                </div>
-                {/* Visual side */}
-                <div className="s-panel">
-                  <TaskBoardMock color={f.color} items={f.items} />
-                </div>
+              { title: "Next.js 16 + React 19", sub: "Turbopack Bundler & Server Actions" },
+              { title: "Socket.io 4 Cluster", sub: "Room Segregation & JWT Handshake" },
+              { title: "Redis 7 & BullMQ", sub: "Distributed Task Offloading" },
+              { title: "Google Gemini 1.5", sub: "Contextual Workload Modeling" },
+            ].map((arch, idx) => (
+              <div key={idx} className="p-5 rounded-2xl bg-white/[0.02] border border-white/[0.06] hover:border-white/[0.12] transition-colors">
+                <span className="text-xs font-mono text-indigo-400 font-bold mb-2 block">0{idx + 1} // ARCH</span>
+                <h4 className="text-sm font-semibold text-white mb-1">{arch.title}</h4>
+                <p className="text-xs text-slate-500">{arch.sub}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ═══════════════════ HORIZONTAL FEATURE STRIP ═══════════════ */}
-      <div className="h-container" style={{ height: "100vh", overflow: "hidden", position: "relative", background: "#0d0c1a" }}>
-        <div className="h-track flex items-center" style={{ width: "max-content", height: "100%", paddingLeft: "10vw", gap: "24px" }}>
+      {/* ═══════════════════════ CALL TO ACTION ═══════════════════════ */}
+      <section className="relative z-10 py-32 px-4 sm:px-6 max-w-5xl mx-auto">
+        <div className="rounded-3xl p-10 sm:p-16 bg-gradient-to-b from-[#131524] to-[#0a0b12] border border-indigo-500/30 text-center relative overflow-hidden shadow-[0_0_80px_-20px_rgba(99,102,241,0.3)]">
+          
+          {/* Subtle Glow Spheres */}
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-96 bg-indigo-600/20 rounded-full blur-[100px] pointer-events-none" />
 
-          <div className="flex-shrink-0 flex flex-col justify-center" style={{ width: "340px", paddingRight: "60px" }}>
-            <p className="text-indigo-400 text-xs tracking-[0.3em] uppercase font-bold mb-4">Features</p>
-            <h2 className="font-syne font-extrabold text-5xl text-white leading-tight mb-3">
-              Built for<br />
-              <span style={{ background: "linear-gradient(135deg,#a5b4fc,#22d3ee)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>speed</span>
-            </h2>
-            <p className="text-slate-600 text-sm">Scroll to explore →</p>
-          </div>
-
-          {[
-            { icon: "⚡", title: "AI Tasks", lines: ["Generate sprint in 3s","Auto-assign by skill","Estimate complexity"], color: "#818cf8", bg: "rgba(30,27,75,0.9)" },
-            { icon: "📡", title: "Risk Radar", lines: ["Scan velocity daily","Flag scope creep early","Alert before crisis"], color: "#22d3ee", bg: "rgba(12,26,46,0.9)" },
-            { icon: "🔗", title: "Live Sync", lines: ["Real-time co-editing","@mention teammates","Push to Slack/webhook"], color: "#c4b5fd", bg: "rgba(26,11,46,0.9)" },
-            { icon: "📊", title: "Analytics", lines: ["Burndown charts","Velocity trends","Custom dashboards"], color: "#f9a8d4", bg: "rgba(45,10,26,0.9)" },
-            { icon: "🔔", title: "Smart Alerts", lines: ["Context-aware only","No notification spam","Right signal, right time"], color: "#6ee7b7", bg: "rgba(10,31,26,0.9)" },
-            { icon: "🔌", title: "Integrations", lines: ["GitHub, Slack, Figma","Linear, Jira, Notion","REST API + webhooks"], color: "#fcd34d", bg: "rgba(26,21,0,0.9)" },
-          ].map((card) => {
-            return (
-              <div key={card.title}
-                className="h-card group flex-shrink-0 rounded-3xl p-7 border relative overflow-hidden transition-colors"
-                style={{ width: "320px", height: "360px", background: card.bg, borderColor: `${card.color}25` }}
-                onMouseMove={(e) => {
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  e.currentTarget.style.setProperty('--x', `${e.clientX - rect.left}px`);
-                  e.currentTarget.style.setProperty('--y', `${e.clientY - rect.top}px`);
-                }}>
-                
-                {/* Dynamic Mouse Glow */}
-                <div className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-                  style={{ background: `radial-gradient(400px circle at var(--x) var(--y), ${card.color}15, transparent 40%)` }} />
-                
-                {/* Static corner glow */}
-                <div className="absolute top-0 right-0 w-40 h-40 rounded-full pointer-events-none opacity-10"
-                  style={{ background: card.color, filter: "blur(40px)", transform: "translate(30%,-30%)" }} />
-                
-                <div className="relative z-10 text-4xl mb-5">{card.icon}</div>
-                <div className="relative z-10 w-7 h-0.5 mb-4 rounded-full" style={{ background: card.color }} />
-                <h3 className="relative z-10 font-syne font-extrabold text-xl text-white mb-4">{card.title}</h3>
-                <ul className="relative z-10 space-y-2">
-                  {card.lines.map((line) => (
-                    <li key={line} className="flex items-center gap-2 text-slate-400 text-sm font-medium">
-                      <span className="w-1 h-1 rounded-full flex-shrink-0" style={{ background: card.color }} />
-                      {line}
-                    </li>
-                  ))}
-                </ul>
-                {/* Arrow button */}
-                <div className="relative z-10 absolute bottom-6 right-6 w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-all group-hover:bg-opacity-30 group-hover:translate-x-1"
-                  style={{ background: `${card.color}18`, color: card.color }}>
-                  →
-                </div>
-              </div>
-            );
-          })}
-
-          <div style={{ width: "10vw", flexShrink: 0 }} />
-        </div>
-      </div>
-
-      {/* ═══════════════════ STATS ══════════════════════════════════ */}
-      <section className="py-28 bg-[#f8f7f3] border-y border-slate-200/60">
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <p className="pill reveal-up mb-4" style={{ margin: "0 auto 16px" }}>By the numbers</p>
-            <h2 className="font-syne font-extrabold text-5xl text-slate-900 reveal-up">
-              Trusted at <span className="grad">scale</span>
-            </h2>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            {[
-              { label: "Teams worldwide", target: "2400", suffix: "+", icon: "🏢" },
-              { label: "Tasks completed", target: "1200000", suffix: "+", icon: "✅" },
-              { label: "Hours saved / month", target: "18000", suffix: "+", icon: "⚡" },
-              { label: "Uptime SLA", target: "99.9", suffix: "%", icon: "🛡️" },
-            ].map((s) => (
-              <div key={s.label} className="reveal-up text-center p-6 rounded-2xl bg-white border border-slate-100 shadow-sm">
-                <div className="text-2xl mb-3">{s.icon}</div>
-                <div className="font-syne font-extrabold text-4xl grad mb-1.5">
-                  <span className="count-num" data-target={s.target}>0</span>{s.suffix}
-                </div>
-                <p className="text-slate-400 text-sm font-medium">{s.label}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ═══════════════════ TESTIMONIAL ════════════════════════════ */}
-      <section className="py-36 bg-white overflow-hidden">
-        <div className="max-w-4xl mx-auto px-6 text-center">
-          <p className="reveal-up text-slate-400 text-xs tracking-[0.3em] uppercase font-bold mb-10">What teams say</p>
-          <div className="reveal-up flex justify-center gap-1 mb-8">
-            {Array(5).fill(0).map((_, i) => (
-              <svg key={i} className="w-5 h-5 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-              </svg>
-            ))}
-          </div>
-          <blockquote className="clip-reveal font-syne font-extrabold text-4xl md:text-5xl text-slate-900 leading-[1.15] mb-10">
-            "Project Camp cut our sprint planning from{" "}
-            <span style={{ background: "linear-gradient(135deg,#4f46e5,#7c3aed)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
-              2 hours to 4 minutes.
+          <div className="relative z-10">
+            <span className="px-3.5 py-1.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-xs font-semibold uppercase tracking-wider mb-6 inline-block">
+              Ready to Upgrade Your Workflow?
             </span>
-            {" "}It feels like cheating."
-          </blockquote>
-          <div className="reveal-up flex items-center justify-center gap-3">
-            <div className="w-11 h-11 rounded-full flex items-center justify-center text-white font-bold font-syne"
-              style={{ background: "linear-gradient(135deg,#4f46e5,#7c3aed)" }}>S</div>
-            <div className="text-left">
-              <div className="text-slate-800 font-semibold text-sm">Sarah Chen</div>
-              <div className="text-slate-400 text-xs">Engineering Lead, Vercel</div>
-            </div>
-            <div className="ml-6 px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-100">
-              <span className="text-slate-500 text-xs font-bold">▲ vercel</span>
+            <h2 className="font-syne font-extrabold text-3xl sm:text-5xl text-white mb-6 tracking-tight leading-tight">
+              Start building with ProjectCamp today.
+            </h2>
+            <p className="text-slate-400 text-base max-w-xl mx-auto mb-10 leading-relaxed">
+              Experience the power of real-time coordination and AI-driven task intelligence. Free to get started with no credit card required.
+            </p>
+            
+            <Link
+              href="/auth"
+              className="inline-flex items-center gap-3 px-8 py-4 rounded-xl bg-gradient-to-r from-indigo-500 via-purple-500 to-cyan-500 text-white font-bold text-base shadow-[0_0_30px_rgba(99,102,241,0.5)] hover:scale-105 active:scale-95 transition-all"
+            >
+              <span>Create Free Account</span>
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-6 text-xs text-slate-500 font-mono">
+              <span>✓ Open Source MIT</span>
+              <span>✓ Next.js 16 Compatible</span>
+              <span>✓ Redis & Socket.io Ready</span>
             </div>
           </div>
         </div>
       </section>
 
-      {/* ═══════════════════ CTA ════════════════════════════════════ */}
-      <section className="py-28 bg-[#f8f7f3]">
-        <div className="max-w-5xl mx-auto px-6">
-          <div className="cta-box rounded-[2rem] p-14 md:p-20 text-center relative overflow-hidden border border-indigo-100/80"
-            style={{ background: "linear-gradient(135deg, #eef2ff 0%, #f0f9ff 50%, #f5f0ff 100%)" }}>
-            {/* Glow blobs */}
-            <div className="absolute -top-20 -right-20 w-72 h-72 rounded-full opacity-40 pointer-events-none"
-              style={{ background: "radial-gradient(#4f46e5,transparent 65%)", filter: "blur(50px)" }} />
-            <div className="absolute -bottom-20 -left-20 w-72 h-72 rounded-full opacity-25 pointer-events-none"
-              style={{ background: "radial-gradient(#0891b2,transparent 65%)", filter: "blur(50px)" }} />
-            <div className="relative z-10">
-              <p className="pill mb-6" style={{ margin: "0 auto 24px" }}>Start today</p>
-              <h2 className="font-syne font-extrabold text-5xl md:text-6xl text-slate-900 mb-5 leading-[1.08]">
-                Ready to build<br />
-                <span className="grad">something remarkable?</span>
-              </h2>
-              <p className="text-slate-500 text-lg mb-10 font-light max-w-md mx-auto leading-relaxed">
-                Free forever for up to 3 projects. No credit card. Cancel anytime.
-              </p>
-              <Link href="/auth"
-                className="inline-flex items-center gap-3 px-10 py-4 rounded-2xl text-white font-bold text-lg transition-all hover:-translate-y-1 hover:shadow-2xl"
-                style={{ background: "linear-gradient(135deg,#4f46e5,#6d28d9)", boxShadow: "0 12px 40px rgba(79,70,229,0.4)" }}>
-                Start building — it's free
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                </svg>
-              </Link>
-              <div className="mt-8 flex items-center justify-center gap-8 text-slate-400 text-sm">
-                {["🔒 SOC 2 Type II","🇪🇺 GDPR Ready","⚡ 99.9% Uptime","💳 No credit card"].map((t) => (
-                  <span key={t} className="font-medium">{t}</span>
-                ))}
-              </div>
+      {/* ═══════════════════════ FOOTER ═══════════════════════ */}
+      <footer className="relative z-10 border-t border-white/[0.08] py-12 px-6 bg-[#050608]">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6 text-sm text-slate-500">
+          <div className="flex items-center gap-3">
+            <div className="w-7 h-7 rounded-lg bg-indigo-600/30 border border-indigo-500/40 flex items-center justify-center">
+              <Zap className="w-3.5 h-3.5 text-indigo-400" />
             </div>
+            <span className="font-syne font-bold text-white">ProjectCamp</span>
+            <span className="text-xs text-slate-600 font-mono">© 2026</span>
           </div>
-        </div>
-      </section>
 
-      {/* ═══════════════════ FOOTER ═════════════════════════════════ */}
-      <footer className="bg-white border-t border-slate-200 pt-16 pb-8">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-10 mb-14">
-            {/* Brand col */}
-            <div className="col-span-2">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-7 h-7 rounded-lg" style={{ background: "linear-gradient(135deg,#4f46e5,#7c3aed)" }} />
-                <span className="font-syne font-bold text-slate-900">Project Camp</span>
-              </div>
-              <p className="text-slate-400 text-sm leading-relaxed max-w-[240px] mb-5 font-light">
-                AI-powered project management for teams who move fast.
-              </p>
-              <div className="flex gap-3">
-                {["𝕏","in","gh"].map((s) => (
-                  <a key={s} href="#"
-                    className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-800 text-xs font-bold transition-all">
-                    {s}
-                  </a>
-                ))}
-              </div>
-            </div>
-            {/* Link cols */}
-            {[
-              { head: "Product", links: ["Features","Pricing","Changelog","Roadmap"] },
-              { head: "Company", links: ["About","Blog","Careers","Press"] },
-              { head: "Legal", links: ["Privacy","Terms","Security","GDPR"] },
-            ].map((col) => (
-              <div key={col.head}>
-                <p className="font-syne font-bold text-slate-900 text-sm mb-4">{col.head}</p>
-                <ul className="space-y-3">
-                  {col.links.map((l) => (
-                    <li key={l}>
-                      <a href="#" className="text-slate-400 hover:text-slate-700 text-sm transition-colors">{l}</a>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
+          <div className="flex items-center gap-2 text-xs font-mono">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-slate-400">All Systems Operational · Socket.io & MongoDB Connected</span>
           </div>
-          <div className="border-t border-slate-100 pt-8 flex flex-col md:flex-row items-center justify-between gap-3">
-            <p className="text-slate-400 text-sm">© 2026 Project Camp · All rights reserved</p>
-            <p className="text-slate-300 text-sm">Built for ambitious teams worldwide 🌍</p>
+
+          <div className="flex gap-6 text-xs text-slate-400">
+            <Link href="/auth" className="hover:text-white transition-colors">Sign In</Link>
+            <a href="https://github.com/nimranaz148/project-management-system" target="_blank" rel="noreferrer" className="hover:text-white transition-colors">GitHub</a>
+            <a href="#features" className="hover:text-white transition-colors">Documentation</a>
           </div>
         </div>
       </footer>
+
     </div>
   );
 }

@@ -26,7 +26,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       className={`${dmSans.variable} ${syne.variable} h-full antialiased`}
       suppressHydrationWarning
     >
-      <body suppressHydrationWarning className="min-h-full flex flex-col font-sans bg-[#f8f7f3] text-slate-900">
+      <body suppressHydrationWarning className="min-h-full flex flex-col font-sans bg-[#07080b] text-slate-100">
         {children}
       </body>
     </html>

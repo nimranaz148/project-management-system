@@ -28,12 +28,12 @@ export default function HeroCanvas() {
 
     // ── Scene setup ───────────────────────────────────────────────
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x03020d);
 
     const camera = new THREE.PerspectiveCamera(50, W / H, 0.1, 500);
     camera.position.set(0, 0, 18);
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setClearColor(0x000000, 0);
     renderer.setSize(W, H);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -236,7 +236,7 @@ export default function HeroCanvas() {
   return (
     <div
       ref={mountRef}
-      style={{ position: "absolute", inset: 0, width: "100%", height: "100%", zIndex: 0 }}
+      className="absolute inset-0 w-full h-full pointer-events-none z-0 overflow-hidden opacity-75"
     />
   );
 }
