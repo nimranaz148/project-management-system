@@ -84,6 +84,22 @@ flowchart TD
 
 ---
 
+## 📸 Application Screenshots & UI Showcase
+
+| 🌟 Cyber-Obsidian 3D Hero Experience | 📋 Real-Time Drag & Drop Kanban |
+| :---: | :---: |
+| ![3D Landing Experience](screenshots/homepage_3d_showcase.png) | ![Interactive Kanban Board](screenshots/kanban_board_with_task.png) |
+
+| 📊 Workspace Telemetry & Analytics | 🔍 Granular Task & Subtask Modal |
+| :---: | :---: |
+| ![Workspace Dashboard](screenshots/dashboard_populated.png) | ![Task Inspection Modal](screenshots/task_view_modal.png) |
+
+| 👥 Team Management & RBAC Permissions | 📝 Project Notes with Multi-File Uploads |
+| :---: | :---: |
+| ![Team Management](screenshots/dashboard_team_management.png) | ![Collaborative Notes](screenshots/notes_created.png) |
+
+---
+
 ## 🛠️ Tech Stack & Technologies
 
 | Layer | Technologies |
