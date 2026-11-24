@@ -15,7 +15,7 @@ const getGenAI = () => new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 const askAI = async (systemPrompt, userPrompt) => {
     const genAI = getGenAI();
     const model = genAI.getGenerativeModel({ 
-        model: "gemini-3.6-flash",
+        model: process.env.GEMINI_MODEL || "gemini-1.5-flash",
         systemInstruction: systemPrompt 
     });
     
@@ -55,7 +55,7 @@ export const suggestTasks = asyncHandler(async (req , res) => {
     const existingTasks = await Task.find({project: projectId}).limit(20)
 
     // get team member of this project
-    const members = await  ProjectMember.find({project: projectId})
+    const members = await ProjectMember.find({project: projectId}).populate("user", "username fullName email");
 
     // prepare system prompt for AI
     const sysPrompt = `you are a project management AI assistant.
@@ -67,7 +67,7 @@ export const suggestTasks = asyncHandler(async (req , res) => {
     project name : ${project.name}
     project context : ${context}
     team size : ${members.length} members
-    team members : ${members.map(m => m.user).join(",")}
+    team members : ${members.map(m => m.user?.username || "member").join(", ")}
 
     existing tasks(avoid duplicates): ${existingTasks.map(t => t.title).join(",")}
 
@@ -135,18 +135,19 @@ export const analyzeRisks = asyncHandler(async (req, res) => {
     .limit(10);
 
   // GET MEMBER WORKLOAD
-  const members = await ProjectMember.find({ project: projectId });
+  const members = await ProjectMember.find({ project: projectId }).populate("user", "username fullName email");
 
   // CALCULATE WORKLOAD for each member
   const workloads = await Promise.all(
     members.map(async (m) => {
+      const userId = m.user?._id || m.user;
       const count = await Task.countDocuments({
         project: projectId,
-        assignedTo: m.user._id,
+        assignedTo: userId,
         status: { $ne: "done" },
       });
 
-      return { username: m.user.username, activeTasks: count };
+      return { username: m.user?.username || "Unknown", activeTasks: count };
     })
   );
 
@@ -213,7 +214,7 @@ export const predictTimeline = asyncHandler(async (req, res) => {
     return res.status(404).json({ error: "Project not found" });
   }
 
-  const tasks = await Task.find({ project: projectId }).select("title status estimatedHours");
+  const tasks = await Task.find({ project: projectId }).select("title status estimatedHours dueDate");
 
   const sysPrompt = `You are a project timeline prediction AI assistant.
 Analyze project tasks and predict timeline to completion.
@@ -269,21 +270,26 @@ export const balanceWorkload = asyncHandler(async (req, res) => {
     return res.status(404).json({ error: "Project not found" });
   }
 
-  const members = await ProjectMember.find({ project: projectId })
+  const members = await ProjectMember.find({ project: projectId }).populate("user", "username fullName email");
 
   // calculate workload for each member
   const workloads = await Promise.all(
     members.map(async (m) => {
+      const userId = m.user?._id || m.user;
       const tasks = await Task.find({
         project: projectId,
-        assignedTo: m.user._id,
+        assignedTo: userId,
         status: { $ne: "done" },
 
-      }).select("title status")
+      }).select("title status priority");
 
-      return { username: m.user.username, activeTasks: tasks.length, tasks: tasks.map(t => ({ title: t.title, status: t.status })) };
+      return { 
+        username: m.user?.username || "Unknown", 
+        activeTasks: tasks.length, 
+        tasks: tasks.map(t => ({ title: t.title, status: t.status, priority: t.priority })) 
+      };
     })
-  )
+  );
 
 
    // get unassigned tasks
@@ -338,20 +344,26 @@ export const smartassignTask = asyncHandler(async (req, res) => {
     return res.status(404).json({ error: "Task not found" });
   }
 
-  const members = await ProjectMember.find({ project: task.project._id })
+  const members = await ProjectMember.find({ project: task.project._id }).populate("user", "username fullName email");
 
   const {considerWorkload = true, considerSkills = true} = req.body
 
     // calculate workload for each member
     const workloads = await Promise.all(
     members.map(async (m) => {
+      const userId = m.user?._id || m.user;
       const count = await Task.countDocuments({
         project: task.project._id,
-        assignedTo: m.user._id,
+        assignedTo: userId,
         status: { $ne: "done" },
       });
 
-      return { username: m.user.username, userId: m.user._id, fullName: m.user.fullName, activeTasks: count };
+      return { 
+        username: m.user?.username || "Unknown", 
+        userId: userId, 
+        fullName: m.user?.fullName || m.user?.username || "Member", 
+        activeTasks: count 
+      };
     })
    )
 
@@ -507,7 +519,7 @@ export const aiChat = asyncHandler(async (req, res) => {
     try {
         const genAI = getGenAI();
         const model = genAI.getGenerativeModel({ 
-            model: "gemini-3.6-flash",
+            model: process.env.GEMINI_MODEL || "gemini-1.5-flash",
             systemInstruction: "You are an expert AI Project Manager for Project Camp. Answer questions clearly and concisely."
         });
         

@@ -41,3 +41,16 @@ export const requireProjectAdmin = (req, res, next) => {
 
     next(); // Proceed to the next middleware or route handler
 }
+
+// verify member has permission to create tasks
+export const requireCanCreateTask = (req, res, next) => {
+    if(!req.membership) {
+        throw new ApiError(403, "Access denied. You are not a member of this project")
+    }
+
+    if(req.membership.role === "admin" || req.membership.permissions?.canCreateTasks) {
+        return next();
+    }
+
+    throw new ApiError(403, "Access denied. You do not have permission to create tasks in this project")
+}

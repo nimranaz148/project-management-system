@@ -24,11 +24,19 @@ app.use(express.static("public")); // this tells express about   never changing 
 
 
 //-----------------------CORS------------------------
+const allowedOrigins = process.env.CORS_ORIGIN
+    ? process.env.CORS_ORIGIN.split(",").map(o => o.trim())
+    : ["http://localhost:3000"];
 
 app.use(cors(
     {
-        // process.env.CORS_ORIGINS || "*"
-        origin: "http://localhost:3000",
+        origin: (origin, callback) => {
+            if (!origin) return callback(null, true);
+            if (allowedOrigins.includes("*") || allowedOrigins.includes(origin)) {
+                return callback(null, true);
+            }
+            return callback(new Error(`CORS blocked for origin: ${origin}`));
+        },
         credentials: true,
         methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
         allowedHeaders: ["Content-Type", "Authorization"],  
@@ -60,7 +68,7 @@ app.use((err, req, res, next) => {
     res.status(err.statusCode || 500).json({
         success: false,
         message: err.message || "Internal Server Error",
-        error: err
+        error: process.env.NODE_ENV === "production" ? undefined : (err.errors || err.message || err)
     });
 });
 

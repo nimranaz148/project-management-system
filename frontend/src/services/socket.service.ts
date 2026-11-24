@@ -2,9 +2,17 @@ import { io, Socket } from "socket.io-client";
 
 let socket: Socket | null = null;
 
+const getSocketUrl = () => {
+    if (process.env.NEXT_PUBLIC_SOCKET_URL) return process.env.NEXT_PUBLIC_SOCKET_URL;
+    if (process.env.NEXT_PUBLIC_API_URL) {
+        return process.env.NEXT_PUBLIC_API_URL.replace(/\/api\/v1\/?$/, '');
+    }
+    return "http://localhost:8000";
+};
+
 export const initSocket = () => {
     if (!socket) {
-        socket = io("http://localhost:8000", {
+        socket = io(getSocketUrl(), {
             withCredentials: true,
             transports: ["websocket", "polling"]
         });
